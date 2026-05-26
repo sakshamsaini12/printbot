@@ -1,0 +1,13 @@
+{
+  "name": "printbot",
+  "version": "1.0.0",
+  "description": "PrintBot - Premium Layout Workspace for ShopShip",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PrintBot — License Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Login screen ── */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .login-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+    }
+    .login-card .lock-icon {
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+    .login-card h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 6px;
+    }
+    .login-card p {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 28px;
+    }
+    .login-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #f1f5f9;
+      font-size: 15px;
+      margin-bottom: 12px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .login-input:focus { border-color: #6366f1; }
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: #6366f1;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .login-btn:hover { background: #4f46e5; }
+    .login-error {
+      color: #f87171;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    /* ── Admin app ── */
+    #admin-app { display: none; }
+
+    .topbar {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .topbar-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .topbar-title .badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: #312e81;
+      color: #a5b4fc;
+      font-weight: 700;
+    }
+    .logout-btn {
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .logout-btn:hover { background: #334155; color: #f1f5f9; }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 0;
+      height: calc(100vh - 57px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: #1e293b;
+      border-right: 1px solid #334155;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .gen-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 18px;
+    }
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .field-input {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f1f5f9;
+      font-size: 13px;
+      outline: none;
+      margin-bottom: 12px;
+      transition: border-color .2s;
+    }
+    .field-input:focus { border-color: #6366f1; }
+    .gen-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: #6366f1;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .gen-btn:hover { background: #4f46e5; }
+    .gen-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+    /* Generated keys output */
+    .keys-output {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 14px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12px;
+      color: #a5b4fc;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 220px;
+      overflow-y: auto;
+      display: none;
+    }
+    .copy-all-btn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all .2s;
+      display: none;
+    }
+    .copy-all-btn:hover { background: #334155; color: #f1f5f9; }
+
+    /* Stats */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+    }
+    .stat-chip {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-chip .num {
+      font-size: 22px;
+      font-weight: 800;
+      color: #f1f5f9;
+    }
+    .stat-chip .lbl {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    /* ── Key table ── */
+    .table-area {
+      padding: 24px;
+      overflow-y: auto;
+      background: #0f172a;
+    }
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .search-input {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f1f5f9;
+      font-size: 13px;
+      outline: none;
+      width: 240px;
+      transition: border-color .2s;
+    }
+    .search-input:focus { border-color: #6366f1; }
+    .filter-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .filter-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+    .refresh-btn {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .refresh-btn:hover { background: #334155; color: #f1f5f9; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid #1e293b;
+    }
+    tbody tr {
+      border-bottom: 1px solid #1e293b;
+      transition: background .1s;
+    }
+    tbody tr:hover { background: #1e293b; }
+    tbody td {
+      padding: 12px 14px;
+      vertical-align: middle;
+    }
+    .key-mono {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12px;
+      color: #a5b4fc;
+      letter-spacing: .04em;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .status-pill.active   { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+    .status-pill.revoked  { background: #2d0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+    .status-pill.unbound  { background: #1c1917; color: #a3a3a3; border: 1px solid #44403c; }
+    .device-cell {
+      font-size: 11px;
+      color: #475569;
+      font-family: monospace;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .note-cell { font-size: 12px; color: #64748b; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .date-cell { font-size: 11px; color: #475569; white-space: nowrap; }
+    .actions-cell { white-space: nowrap; }
+    .act-btn {
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      margin-right: 4px;
+    }
+    .act-btn:hover { background: #334155; color: #f1f5f9; }
+    .act-btn.danger:hover { background: #7f1d1d; border-color: #7f1d1d; color: #fca5a5; }
+    .act-btn.warn:hover   { background: #451a03; border-color: #78350f; color: #fcd34d; }
+    .act-btn.ok:hover     { background: #052e16; border-color: #166534; color: #4ade80; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 0;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      padding: 12px 22px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      z-index: 9999;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: #166534; color: #4ade80; }
+    .toast.error   { border-color: #7f1d1d; color: #f87171; }
+  </style>
+</head>
+<body>
+
+<!-- ── Login Screen ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="lock-icon">🔐</div>
+    <h1>PrintBot Admin</h1>
+    <p>Enter your admin password to continue</p>
+    <input id="admin-password" class="login-input" type="password" placeholder="Admin password" autocomplete="current-password" />
+    <button class="login-btn" id="login-btn">Sign In</button>
+    <p class="login-error" id="login-error">Incorrect password. Try again.</p>
+  </div>
+</div>
+
+<!-- ── Admin App ── -->
+<div id="admin-app">
+  <div class="topbar">
+    <div class="topbar-title">
+      🖨️ PrintBot License Admin
+      <span class="badge">ADMIN</span>
+    </div>
+    <button class="logout-btn" id="logout-btn">Sign Out</button>
+  </div>
+
+  <div class="main-layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div>
+        <div class="panel-title">Stats</div>
+        <div class="stats-row">
+          <div class="stat-chip"><div class="num" id="stat-total">—</div><div class="lbl">Total</div></div>
+          <div class="stat-chip"><div class="num" id="stat-active">—</div><div class="lbl">Active</div></div>
+          <div class="stat-chip"><div class="num" id="stat-activated">—</div><div class="lbl">Used</div></div>
+        </div>
+      </div>
+
+      <div class="gen-card">
+        <div class="panel-title">Generate Keys</div>
+        <label for="gen-count">Number of keys (1–200)</label>
+        <input id="gen-count" class="field-input" type="number" min="1" max="200" value="1" />
+        <label for="gen-note">Note / Customer tag (optional)</label>
+        <input id="gen-note" class="field-input" type="text" placeholder="e.g. Order #1234, John Doe" maxlength="120" />
+        <button class="gen-btn" id="gen-btn">⚡ Generate</button>
+      </div>
+
+      <div>
+        <div id="keys-output" class="keys-output"></div>
+        <button id="copy-all-btn" class="copy-all-btn">📋 Copy All Keys</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-area">
+      <div class="table-header">
+        <div class="filter-btns">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="active">Active</button>
+          <button class="filter-btn" data-filter="unbound">Unactivated</button>
+          <button class="filter-btn" data-filter="revoked">Revoked</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="search-input" class="search-input" type="text" placeholder="Search key or note…" />
+          <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
+        </div>
+      </div>
+
+      <table id="keys-table">
+        <thead>
+          <tr>
+            <th>License Key</th>
+            <th>Status</th>
+            <th>Device ID</th>
+            <th>Note</th>
+            <th>Created</th>
+            <th>Activated</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="keys-tbody">
+          <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  let _adminPass = "";
+  let _allKeys   = [];
+  let _filter    = "all";
+  let _search    = "";
+
+  // ── Toast ──────────────────────────────────────────────
+  function showToast(msg, type = "") {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className   = "toast " + type;
+    void t.offsetWidth;
+    t.classList.add("show");
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove("show"), 2800);
+  }
+
+  // ── Auth ───────────────────────────────────────────────
+  async function tryLogin() {
+    const pass = document.getElementById("admin-password").value.trim();
+    if (!pass) return;
+    // Verify by hitting a real admin endpoint
+    try {
+      const r = await fetch("/api/admin/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pass }),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        document.getElementById("login-error").style.display = "block";
+        return;
+      }
+      _adminPass = pass;
+      sessionStorage.setItem("pb_admin_pass", pass);
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("admin-app").style.display    = "block";
+      _allKeys = d.keys;
+      renderTable();
+      renderStats();
+    } catch {
+      document.getElementById("login-error").textContent = "Server unreachable.";
+      document.getElementById("login-error").style.display = "block";
+    }
+  }
+
+  function logout() {
+    _adminPass = "";
+    sessionStorage.removeItem("pb_admin_pass");
+    document.getElementById("login-screen").style.display = "flex";
+    document.getElementById("admin-app").style.display    = "none";
+    document.getElementById("admin-password").value       = "";
+    document.getElementById("login-error").style.display  = "none";
+  }
+
+  // ── API helpers ────────────────────────────────────────
+  async function api(endpoint, body = {}) {
+    const r = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: _adminPass, ...body }),
+    });
+    return r.json();
+  }
+
+  // ── Generate ───────────────────────────────────────────
+  async function generateKeys() {
+    const count = Math.min(parseInt(document.getElementById("gen-count").value) || 1, 200);
+    const note  = document.getElementById("gen-note").value.trim();
+    const btn   = document.getElementById("gen-btn");
+    btn.disabled    = true;
+    btn.textContent = "Generating…";
+    try {
+      const d = await api("/api/admin/generate", { count, note });
+      if (!d.ok) { showToast("Generation failed.", "error"); return; }
+      const out = document.getElementById("keys-output");
+      out.textContent    = d.keys.join("\n");
+      out.style.display  = "block";
+      const copyBtn            = document.getElementById("copy-all-btn");
+      copyBtn.style.display    = "block";
+      copyBtn.dataset.keys     = d.keys.join("\n");
+      showToast(`✅ ${d.keys.length} key${d.keys.length > 1 ? "s" : ""} generated!`, "success");
+      await refreshList();
+    } catch { showToast("Server error.", "error"); }
+    finally { btn.disabled = false; btn.textContent = "⚡ Generate"; }
+  }
+
+  // ── List ───────────────────────────────────────────────
+  async function refreshList() {
+    try {
+      const d = await api("/api/admin/list");
+      if (!d.ok) return;
+      _allKeys = d.keys;
+      renderTable();
+      renderStats();
+    } catch { showToast("Could not refresh list.", "error"); }
+  }
+
+  // ── Stats ──────────────────────────────────────────────
+  function renderStats() {
+    const total     = _allKeys.length;
+    const active    = _allKeys.filter(k => k.active).length;
+    const activated = _allKeys.filter(k => k.active && k.deviceId).length;
+    document.getElementById("stat-total").textContent     = total;
+    document.getElementById("stat-active").textContent    = active;
+    document.getElementById("stat-activated").textContent = activated;
+  }
+
+  // ── Table ──────────────────────────────────────────────
+  function renderTable() {
+    const tbody = document.getElementById("keys-tbody");
+    let rows = _allKeys;
+
+    if (_filter === "active")   rows = rows.filter(k => k.active && k.deviceId);
+    if (_filter === "unbound")  rows = rows.filter(k => k.active && !k.deviceId);
+    if (_filter === "revoked")  rows = rows.filter(k => !k.active);
+
+    if (_search) {
+      const q = _search.toLowerCase();
+      rows = rows.filter(k =>
+        k.key.toLowerCase().includes(q) ||
+        (k.note && k.note.toLowerCase().includes(q)) ||
+        (k.deviceId && k.deviceId.toLowerCase().includes(q))
+      );
+    }
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No keys found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(k => {
+      const statusLabel = !k.active ? "revoked" : k.deviceId ? "active" : "unbound";
+      const statusText  = !k.active ? "Revoked" : k.deviceId ? "Activated" : "Unactivated";
+      const created     = k.createdAt ? fmtDate(k.createdAt) : "—";
+      const activated   = k.activatedAt ? fmtDate(k.activatedAt) : "—";
+      const device      = k.deviceId ? `<span title="${escHtml(k.deviceId)}">${escHtml(k.deviceId.substring(0, 16))}…</span>` : `<span style="color:#334155">—</span>`;
+
+      let actions = "";
+      if (k.active) {
+        actions += `<button class="act-btn danger" onclick="revokeKey('${escHtml(k.key)}')">Revoke</button>`;
+        if (k.deviceId) {
+          actions += `<button class="act-btn warn" onclick="resetDevice('${escHtml(k.key)}')">Reset Device</button>`;
+        }
+      } else {
+        actions += `<button class="act-btn ok" onclick="unrevokeKey('${escHtml(k.key)}')">Re-activate</button>`;
+      }
+      actions += `<button class="act-btn" onclick="copyKey('${escHtml(k.key)}')">Copy</button>`;
+
+      return `<tr>
+        <td><span class="key-mono">${escHtml(k.key)}</span></td>
+        <td><span class="status-pill ${statusLabel}">${statusText}</span></td>
+        <td class="device-cell">${device}</td>
+        <td class="note-cell" title="${escHtml(k.note || "")}">${escHtml(k.note || "—")}</td>
+        <td class="date-cell">${created}</td>
+        <td class="date-cell">${activated}</td>
+        <td class="actions-cell">${actions}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  // ── Actions ────────────────────────────────────────────
+  async function revokeKey(key) {
+    if (!confirm(`Revoke key:\n${key}\n\nThis will immediately lock out this user.`)) return;
+    const d = await api("/api/admin/revoke", { key });
+    showToast(d.ok ? "Key revoked." : (d.error || "Error"), d.ok ? "success" : "error");
+    if (d.ok) await refreshList();
+  }
+
+  async function unrevokeKey(key) {
+    const d = await api("/api/admin/unrevoke", { key });
+    showToast(d.ok ? "Key re-activated." : (d.error || "Error"), d.ok ? "success" : "error");
+    if (d.ok) await refreshList();
+  }
+
+  async function resetDevice(key) {
+    if (!confirm(`Reset device binding for:\n${key}\n\nThe user will be able to re-activate on a new device.`)) return;
+    const d = await api("/api/admin/reset-device", { key });
+    showToast(d.ok ? "Device reset." : (d.error || "Error"), d.ok ? "success" : "error");
+    if (d.ok) await refreshList();
+  }
+
+  function copyKey(key) {
+    navigator.clipboard.writeText(key).then(() => showToast("Copied!", "success"));
+  }
+
+  // ── Helpers ────────────────────────────────────────────
+  function fmtDate(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })
+      + " " + d.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" });
+  }
+  function escHtml(s) {
+    if (!s) return "";
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // ── Event listeners ────────────────────────────────────
+  document.getElementById("login-btn").addEventListener("click", tryLogin);
+  document.getElementById("admin-password").addEventListener("keydown", e => { if (e.key === "Enter") tryLogin(); });
+  document.getElementById("logout-btn").addEventListener("click", logout);
+  document.getElementById("gen-btn").addEventListener("click", generateKeys);
+  document.getElementById("refresh-btn").addEventListener("click", refreshList);
+  document.getElementById("copy-all-btn").addEventListener("click", function() {
+    navigator.clipboard.writeText(this.dataset.keys).then(() => showToast("All keys copied!", "success"));
+  });
+
+  document.getElementById("search-input").addEventListener("input", function() {
+    _search = this.value.trim();
+    renderTable();
+  });
+
+  document.querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      this.classList.add("active");
+      _filter = this.dataset.filter;
+      renderTable();
+    });
+  });
+
+  // ── Auto-login from sessionStorage (page refresh) ─────
+  (async () => {
+    const saved = sessionStorage.getItem("pb_admin_pass");
+    if (saved) {
+      document.getElementById("admin-password").value = saved;
+      _adminPass = saved;
+      try {
+        const r = await fetch("/api/admin/list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: saved }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+          document.getElementById("login-screen").style.display = "none";
+          document.getElementById("admin-app").style.display    = "block";
+          _allKeys = d.keys;
+          renderTable();
+          renderStats();
+        } else {
+          sessionStorage.removeItem("pb_admin_pass");
+        }
+      } catch {}
+    }
+  })();
+</script>
+</body>
+</html>
