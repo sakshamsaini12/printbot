@@ -1281,8 +1281,12 @@ button:active { transform: scale(0.96) translateY(0); transition-duration: 0.05s
   background-image: none;
   scrollbar-width: thin;
   scrollbar-color: rgba(0,0,0,0.18) transparent;
+  /* Own compositor layer so scroll never blocks main thread */
   transform: translateZ(0);
+  will-change: scroll-position;
   overscroll-behavior: contain;
+  /* Hand touch-scroll directly to compositor */
+  touch-action: pan-y;
 }
 .preview-scroll-area::-webkit-scrollbar { width: 6px; }
 .preview-scroll-area::-webkit-scrollbar-track { background: transparent; }
@@ -2123,6 +2127,10 @@ header { animation: fadeDown 0.30s 0.06s cubic-bezier(0.16,1,0.3,1) both; }
 /* ── Preview page block entrance (staggered by JS) ── */
 .page-enter {
   animation: pageIn 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  /* Skip rendering off-screen pages — critical for scroll performance with large SVGs */
+  content-visibility: auto;
+  /* Hint to browser: each A4 page is roughly this tall so layout stays stable */
+  contain-intrinsic-size: 0 860px;
 }
 
 /* ── Tab active state — pill highlight only, no underline ── */
