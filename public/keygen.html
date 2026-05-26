@@ -6,342 +6,203 @@
   <title>PrintBot — License Admin</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0a0f1e;
-      color: #e2e8f0;
-      min-height: 100vh;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0a0f1e; color: #e2e8f0; min-height: 100vh; }
 
     /* ── Login ── */
-    #login-screen {
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; padding: 24px;
-    }
-    .login-card {
-      background: #111827; border: 1px solid #1f2937;
-      border-radius: 20px; padding: 44px 40px;
-      width: 100%; max-width: 380px; text-align: center;
-      box-shadow: 0 24px 80px rgba(0,0,0,.5);
-    }
-    .login-logo { font-size: 44px; margin-bottom: 20px; }
-    .login-card h1 { font-size: 22px; font-weight: 800; color: #f8fafc; margin-bottom: 6px; }
-    .login-card p  { font-size: 13px; color: #6b7280; margin-bottom: 28px; }
-    .login-input {
-      width: 100%; padding: 13px 16px; border-radius: 12px;
-      border: 1px solid #1f2937; background: #0a0f1e; color: #f8fafc;
-      font-size: 15px; margin-bottom: 12px; outline: none; transition: border-color .2s;
-    }
-    .login-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
-    .login-btn {
-      width: 100%; padding: 13px; border-radius: 12px; border: none;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
-      transition: opacity .2s, transform .1s;
-    }
-    .login-btn:hover { opacity: .9; transform: translateY(-1px); }
-    .login-btn:active { transform: scale(.98); }
-    .login-error { color: #f87171; font-size: 13px; margin-top: 12px; display: none; }
+    #login-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .login-card { background:#111827; border:1px solid #1f2937; border-radius:20px; padding:44px 40px; width:100%; max-width:380px; text-align:center; box-shadow:0 24px 80px rgba(0,0,0,.5); }
+    .login-logo { font-size:44px; margin-bottom:20px; }
+    .login-card h1 { font-size:22px; font-weight:800; color:#f8fafc; margin-bottom:6px; }
+    .login-card p  { font-size:13px; color:#6b7280; margin-bottom:28px; }
+    .login-input { width:100%; padding:13px 16px; border-radius:12px; border:1px solid #1f2937; background:#0a0f1e; color:#f8fafc; font-size:15px; margin-bottom:12px; outline:none; transition:border-color .2s; }
+    .login-input:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+    .login-btn { width:100%; padding:13px; border-radius:12px; border:none; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; font-size:15px; font-weight:700; cursor:pointer; transition:opacity .2s,transform .1s; }
+    .login-btn:hover { opacity:.9; transform:translateY(-1px); }
+    .login-error { color:#f87171; font-size:13px; margin-top:12px; display:none; }
 
-    /* ── Admin app ── */
-    #admin-app { display: none; height: 100vh; flex-direction: column; }
+    /* ── App shell ── */
+    #admin-app { display:none; height:100vh; flex-direction:column; }
 
-    .topbar {
-      background: #111827; border-bottom: 1px solid #1f2937;
-      padding: 0 28px; height: 56px;
-      display: flex; align-items: center; justify-content: space-between;
-      flex-shrink: 0;
-    }
-    .topbar-left { display: flex; align-items: center; gap: 12px; }
-    .topbar-title { font-size: 15px; font-weight: 800; color: #f8fafc; }
-    .admin-badge {
-      font-size: 10px; padding: 2px 8px; border-radius: 99px;
-      background: rgba(99,102,241,.2); color: #a5b4fc;
-      border: 1px solid rgba(99,102,241,.3); font-weight: 700; letter-spacing: .05em;
-    }
-    .topbar-right { display: flex; align-items: center; gap: 10px; }
-    .icon-btn {
-      width: 34px; height: 34px; border-radius: 8px; border: 1px solid #1f2937;
-      background: transparent; color: #94a3b8; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; transition: all .15s;
-    }
-    .icon-btn:hover { background: #1f2937; color: #f8fafc; }
-    .logout-btn {
-      padding: 7px 14px; border-radius: 8px; border: 1px solid #1f2937;
-      background: transparent; color: #6b7280; font-size: 12px;
-      font-weight: 600; cursor: pointer; transition: all .15s;
-    }
-    .logout-btn:hover { background: #1f2937; color: #f8fafc; }
+    .topbar { background:#111827; border-bottom:1px solid #1f2937; padding:0 24px; height:54px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .topbar-left { display:flex; align-items:center; gap:10px; }
+    .topbar-title { font-size:15px; font-weight:800; color:#f8fafc; }
+    .admin-badge { font-size:10px; padding:2px 8px; border-radius:99px; background:rgba(99,102,241,.2); color:#a5b4fc; border:1px solid rgba(99,102,241,.3); font-weight:700; letter-spacing:.05em; }
+    .topbar-right { display:flex; align-items:center; gap:8px; }
+    .tb-btn { padding:7px 14px; border-radius:8px; border:1px solid #1f2937; background:transparent; color:#6b7280; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; white-space:nowrap; }
+    .tb-btn:hover { background:#1f2937; color:#f8fafc; }
+    .tb-btn.primary { background:linear-gradient(135deg,#6366f1,#8b5cf6); border-color:transparent; color:#fff; }
+    .tb-btn.primary:hover { opacity:.9; }
 
-    /* ── Revoke banner ── */
-    #revoke-banner {
-      display: none; background: rgba(220,38,38,.1); border-bottom: 1px solid rgba(220,38,38,.25);
-      padding: 10px 28px; align-items: center; justify-content: space-between; gap: 12px;
-      flex-wrap: wrap; flex-shrink: 0;
-    }
-    #revoke-banner.visible { display: flex; }
-    .revoke-banner-text { font-size: 13px; color: #fca5a5; font-weight: 600; }
-    .revoke-banner-text span { font-family: monospace; font-size: 11px; color: #f87171; margin-left: 8px; opacity: .8; }
-    .revoke-copy-btn {
-      padding: 7px 16px; border-radius: 8px; border: 1px solid rgba(220,38,38,.4);
-      background: rgba(220,38,38,.15); color: #fca5a5; font-size: 12px;
-      font-weight: 700; cursor: pointer; white-space: nowrap; transition: all .15s;
-    }
-    .revoke-copy-btn:hover { background: rgba(220,38,38,.3); }
+    /* cold-start warning */
+    #cold-banner { display:none; background:rgba(217,119,6,.12); border-bottom:1px solid rgba(217,119,6,.25); padding:9px 24px; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; flex-shrink:0; }
+    #cold-banner.show { display:flex; }
+    .cold-text { font-size:12px; color:#fcd34d; font-weight:600; }
+    .cold-copy-btn { padding:6px 14px; border-radius:8px; border:1px solid rgba(217,119,6,.4); background:rgba(217,119,6,.15); color:#fcd34d; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .cold-copy-btn:hover { background:rgba(217,119,6,.3); }
 
     /* ── Main layout ── */
-    .main-layout {
-      display: grid; grid-template-columns: 300px 1fr;
-      flex: 1; min-height: 0; overflow: hidden;
-    }
+    .main-layout { display:grid; grid-template-columns:290px 1fr; flex:1; min-height:0; overflow:hidden; }
 
     /* ── Sidebar ── */
-    .sidebar {
-      background: #111827; border-right: 1px solid #1f2937;
-      padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
-    }
+    .sidebar { background:#111827; border-right:1px solid #1f2937; padding:18px; overflow-y:auto; display:flex; flex-direction:column; gap:14px; }
+    .sec-label { font-size:10px; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
 
-    .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-    .stat-box {
-      background: #0a0f1e; border: 1px solid #1f2937; border-radius: 10px;
-      padding: 12px 10px; text-align: center;
-    }
-    .stat-num { font-size: 24px; font-weight: 800; color: #f8fafc; line-height: 1; }
-    .stat-num.green  { color: #4ade80; }
-    .stat-num.purple { color: #a78bfa; }
-    .stat-num.red    { color: #f87171; }
-    .stat-lbl { font-size: 9px; color: #4b5563; margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+    .stat-box { background:#0a0f1e; border:1px solid #1f2937; border-radius:10px; padding:10px 8px; text-align:center; }
+    .stat-num { font-size:22px; font-weight:800; color:#f8fafc; line-height:1; }
+    .stat-num.g { color:#4ade80; } .stat-num.p { color:#a78bfa; } .stat-num.r { color:#f87171; } .stat-num.y { color:#fcd34d; }
+    .stat-lbl { font-size:9px; color:#374151; margin-top:3px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
 
-    .divider { height: 1px; background: #1f2937; }
+    .divider { height:1px; background:#1f2937; }
 
-    .section-label {
-      font-size: 10px; font-weight: 700; color: #4b5563;
-      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px;
-    }
+    .gen-card { background:#0a0f1e; border:1px solid #1f2937; border-radius:12px; padding:16px; }
+    .gen-card label { font-size:11px; font-weight:600; color:#6b7280; display:block; margin-bottom:5px; }
+    .field-input { width:100%; padding:9px 12px; border-radius:8px; border:1px solid #1f2937; background:#111827; color:#f8fafc; font-size:13px; outline:none; margin-bottom:10px; transition:border-color .2s; }
+    .field-input:focus { border-color:#6366f1; }
+    .gen-btn { width:100%; padding:10px; border-radius:8px; border:none; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s,transform .1s; }
+    .gen-btn:hover:not(:disabled) { opacity:.9; transform:translateY(-1px); }
+    .gen-btn:disabled { background:#1f2937; color:#374151; cursor:not-allowed; transform:none; }
 
-    .gen-card {
-      background: #0a0f1e; border: 1px solid #1f2937; border-radius: 12px; padding: 16px;
-    }
-    .gen-card label {
-      font-size: 11px; font-weight: 600; color: #6b7280;
-      display: block; margin-bottom: 5px;
-    }
-    .field-input {
-      width: 100%; padding: 9px 12px; border-radius: 8px;
-      border: 1px solid #1f2937; background: #111827; color: #f8fafc;
-      font-size: 13px; outline: none; margin-bottom: 10px; transition: border-color .2s;
-    }
-    .field-input:focus { border-color: #6366f1; }
-    .gen-btn {
-      width: 100%; padding: 10px; border-radius: 8px; border: none;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
-      transition: opacity .15s, transform .1s;
-    }
-    .gen-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
-    .gen-btn:disabled { background: #1f2937; color: #4b5563; cursor: not-allowed; }
-
-    .keys-output {
-      background: #0a0f1e; border: 1px solid #1f2937; border-radius: 10px;
-      padding: 12px; font-family: "SF Mono", "Fira Code", monospace; font-size: 11.5px;
-      color: #a5b4fc; white-space: pre-wrap; word-break: break-all;
-      max-height: 200px; overflow-y: auto; display: none; line-height: 1.8;
-    }
-    .copy-all-btn {
-      margin-top: 8px; width: 100%; padding: 8px; border-radius: 8px;
-      border: 1px solid #1f2937; background: transparent; color: #6b7280;
-      font-size: 12px; cursor: pointer; transition: all .15s; display: none;
-    }
-    .copy-all-btn:hover { background: #1f2937; color: #f8fafc; }
-
-    .export-btn {
-      width: 100%; padding: 8px; border-radius: 8px;
-      border: 1px solid #1f2937; background: transparent; color: #6b7280;
-      font-size: 12px; cursor: pointer; transition: all .15s; margin-top: 6px;
-    }
-    .export-btn:hover { background: #1f2937; color: #f8fafc; }
+    .keys-output { background:#0a0f1e; border:1px solid #1f2937; border-radius:10px; padding:12px; font-family:"SF Mono","Fira Code",monospace; font-size:11.5px; color:#a5b4fc; white-space:pre-wrap; word-break:break-all; max-height:180px; overflow-y:auto; display:none; line-height:1.8; margin-top:10px; }
+    .side-btn { width:100%; padding:8px; border-radius:8px; border:1px solid #1f2937; background:transparent; color:#6b7280; font-size:12px; cursor:pointer; transition:all .15s; margin-top:6px; }
+    .side-btn:hover { background:#1f2937; color:#f8fafc; }
 
     /* ── Table area ── */
-    .table-area {
-      padding: 20px; overflow-y: auto; background: #0a0f1e;
-      display: flex; flex-direction: column; gap: 14px;
-    }
+    .table-area { padding:18px; overflow-y:auto; background:#0a0f1e; display:flex; flex-direction:column; gap:12px; }
 
-    .table-toolbar {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    }
-    .filter-pills { display: flex; gap: 5px; }
-    .filter-pill {
-      padding: 5px 14px; border-radius: 99px; border: 1px solid #1f2937;
-      background: transparent; color: #6b7280; font-size: 12px; font-weight: 600;
-      cursor: pointer; transition: all .15s; white-space: nowrap;
-    }
-    .filter-pill:hover { border-color: #374151; color: #d1d5db; }
-    .filter-pill.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+    .toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .filter-pills { display:flex; gap:4px; flex-wrap:wrap; }
+    .fpill { padding:5px 13px; border-radius:99px; border:1px solid #1f2937; background:transparent; color:#4b5563; font-size:12px; font-weight:600; cursor:pointer; transition:all .13s; white-space:nowrap; }
+    .fpill:hover { border-color:#374151; color:#9ca3af; }
+    .fpill.on { background:#6366f1; border-color:#6366f1; color:#fff; }
 
-    .search-input {
-      flex: 1; min-width: 180px; padding: 8px 14px; border-radius: 8px;
-      border: 1px solid #1f2937; background: #111827; color: #f8fafc;
-      font-size: 13px; outline: none; transition: border-color .2s;
-    }
-    .search-input:focus { border-color: #6366f1; }
+    .search-input { flex:1; min-width:160px; padding:8px 14px; border-radius:8px; border:1px solid #1f2937; background:#111827; color:#f8fafc; font-size:13px; outline:none; transition:border-color .2s; }
+    .search-input:focus { border-color:#6366f1; }
+    .refresh-btn { padding:7px 14px; border-radius:8px; border:1px solid #1f2937; background:transparent; color:#4b5563; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; white-space:nowrap; }
+    .refresh-btn:hover { background:#1f2937; color:#f8fafc; }
+    .refresh-btn.spinning { animation:spin .7s linear infinite; pointer-events:none; }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
-    .refresh-btn {
-      padding: 7px 14px; border-radius: 8px; border: 1px solid #1f2937;
-      background: transparent; color: #6b7280; font-size: 12px;
-      cursor: pointer; transition: all .15s; white-space: nowrap;
-    }
-    .refresh-btn:hover { background: #1f2937; color: #f8fafc; }
+    .table-wrap { border-radius:12px; border:1px solid #1f2937; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    thead th { padding:10px 14px; font-size:10px; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:.07em; background:#111827; border-bottom:1px solid #1f2937; text-align:left; white-space:nowrap; }
+    tbody tr { border-bottom:1px solid #111827; transition:background .1s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:#0d1322; }
+    tbody td { padding:11px 14px; vertical-align:middle; }
 
-    /* Table */
-    .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid #1f2937; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    thead th {
-      padding: 11px 14px; font-size: 10px; font-weight: 700; color: #4b5563;
-      text-transform: uppercase; letter-spacing: .07em;
-      background: #111827; border-bottom: 1px solid #1f2937; text-align: left;
-      white-space: nowrap;
-    }
-    tbody tr { border-bottom: 1px solid #111827; transition: background .1s; }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #111827; }
-    tbody td { padding: 12px 14px; vertical-align: middle; }
+    .key-mono { font-family:"SF Mono","Fira Code",monospace; font-size:12px; color:#a5b4fc; letter-spacing:.04em; cursor:pointer; user-select:all; }
+    .key-mono:hover { color:#c7d2fe; }
 
-    .key-mono {
-      font-family: "SF Mono", "Fira Code", monospace; font-size: 12px;
-      color: #a5b4fc; letter-spacing: .04em; cursor: pointer;
-    }
-    .key-mono:hover { color: #c7d2fe; text-decoration: underline dotted; }
+    .pill { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:99px; font-size:10px; font-weight:700; white-space:nowrap; }
+    .pill-dot { width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0; }
+    .pill.active  { background:rgba(74,222,128,.1); color:#4ade80; border:1px solid rgba(74,222,128,.2); }
+    .pill.used    { background:rgba(99,102,241,.12); color:#a5b4fc; border:1px solid rgba(99,102,241,.25); }
+    .pill.fresh   { background:rgba(100,116,139,.1); color:#94a3b8; border:1px solid rgba(100,116,139,.2); }
+    .pill.revoked { background:rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.2); }
 
-    .pill {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 3px 10px; border-radius: 99px; font-size: 10px; font-weight: 700;
-      white-space: nowrap;
-    }
-    .pill.active   { background: rgba(74,222,128,.1); color: #4ade80; border: 1px solid rgba(74,222,128,.2); }
-    .pill.used     { background: rgba(99,102,241,.12); color: #a5b4fc; border: 1px solid rgba(99,102,241,.25); }
-    .pill.unused   { background: rgba(100,116,139,.1); color: #94a3b8; border: 1px solid rgba(100,116,139,.2); }
-    .pill.revoked  { background: rgba(239,68,68,.1); color: #f87171; border: 1px solid rgba(239,68,68,.2); }
-    .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .note-txt { font-size:12px; color:#374151; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .date-txt { font-size:11px; color:#1f2937; white-space:nowrap; }
+    .empty-row { text-align:center; padding:60px 20px; color:#1f2937; font-size:14px; }
 
-    .note-text { font-size: 12px; color: #4b5563; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .date-text { font-size: 11px; color: #374151; white-space: nowrap; }
-    .empty-row { text-align: center; padding: 60px 20px; color: #374151; font-size: 14px; }
-
-    /* Row actions */
-    .row-actions { display: flex; gap: 5px; }
-    .row-btn {
-      padding: 4px 10px; border-radius: 6px; border: 1px solid #1f2937;
-      background: transparent; color: #6b7280; font-size: 11px; font-weight: 600;
-      cursor: pointer; transition: all .13s; white-space: nowrap;
-    }
-    .row-btn:hover         { background: #1f2937; color: #f8fafc; }
-    .row-btn.revoke:hover  { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); color: #f87171; }
-    .row-btn.restore:hover { background: rgba(74,222,128,.1); border-color: rgba(74,222,128,.25); color: #4ade80; }
+    .row-actions { display:flex; gap:4px; }
+    .row-btn { padding:4px 10px; border-radius:6px; border:1px solid #1f2937; background:transparent; color:#4b5563; font-size:11px; font-weight:600; cursor:pointer; transition:all .13s; white-space:nowrap; }
+    .row-btn:hover           { background:#1f2937; color:#f8fafc; }
+    .row-btn.revoke:hover    { background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.3); color:#f87171; }
+    .row-btn.restore:hover   { background:rgba(74,222,128,.1); border-color:rgba(74,222,128,.25); color:#4ade80; }
+    .row-btn.reset-dev:hover { background:rgba(250,204,21,.1); border-color:rgba(250,204,21,.25); color:#fde047; }
 
     /* Toast */
-    .toast {
-      position: fixed; bottom: 28px; left: 50%;
-      transform: translateX(-50%) translateY(90px);
-      background: #1f2937; border: 1px solid #374151; color: #f8fafc;
-      padding: 11px 22px; border-radius: 99px; font-size: 13px; font-weight: 600;
-      box-shadow: 0 8px 32px rgba(0,0,0,.5); transition: transform .28s cubic-bezier(.34,1.56,.64,1);
-      z-index: 9999; white-space: nowrap; pointer-events: none;
-    }
-    .toast.show    { transform: translateX(-50%) translateY(0); }
-    .toast.success { border-color: rgba(74,222,128,.3); color: #4ade80; }
-    .toast.error   { border-color: rgba(239,68,68,.3); color: #f87171; }
-    .toast.info    { border-color: rgba(99,102,241,.3); color: #a5b4fc; }
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(90px); background:#1f2937; border:1px solid #374151; color:#f8fafc; padding:10px 22px; border-radius:99px; font-size:13px; font-weight:600; box-shadow:0 8px 32px rgba(0,0,0,.5); transition:transform .28s cubic-bezier(.34,1.56,.64,1); z-index:9999; white-space:nowrap; pointer-events:none; }
+    .toast.show    { transform:translateX(-50%) translateY(0); }
+    .toast.success { border-color:rgba(74,222,128,.3); color:#4ade80; }
+    .toast.error   { border-color:rgba(239,68,68,.3); color:#f87171; }
+    .toast.info    { border-color:rgba(99,102,241,.3); color:#a5b4fc; }
+    .toast.warn    { border-color:rgba(250,204,21,.3); color:#fde047; }
   </style>
 </head>
 <body>
 
-<!-- ── Login ── -->
+<!-- Login -->
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">🖨️</div>
     <h1>PrintBot Admin</h1>
     <p>Enter your admin password to manage licenses</p>
-    <input id="pw-input" class="login-input" type="password" placeholder="Admin password" autocomplete="current-password" />
+    <input id="pw" class="login-input" type="password" placeholder="Admin password" autocomplete="current-password" />
     <button class="login-btn" id="login-btn">Sign In →</button>
-    <p class="login-error" id="login-error">Incorrect password. Try again.</p>
+    <p class="login-error" id="login-err">Incorrect password. Try again.</p>
   </div>
 </div>
 
-<!-- ── Admin App ── -->
+<!-- Admin App -->
 <div id="admin-app">
-  <!-- Top bar -->
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-title">🖨️ PrintBot</span>
       <span class="admin-badge">LICENSE ADMIN</span>
     </div>
     <div class="topbar-right">
-      <button class="icon-btn" id="validate-all-btn" title="Validate all keys against server">⟳</button>
-      <button class="logout-btn" id="logout-btn">Sign Out</button>
+      <button class="tb-btn primary" id="backup-btn">💾 Backup DB</button>
+      <button class="tb-btn" id="logout-btn">Sign Out</button>
     </div>
   </div>
 
-  <!-- Revoke pending banner -->
-  <div id="revoke-banner">
-    <div class="revoke-banner-text">
-      ⚠️ <span id="revoke-count"></span> key(s) marked revoked — copy value below to <strong>PB_REVOKED</strong> in Vercel env vars, then redeploy.
-      <span id="revoke-preview"></span>
-    </div>
-    <button class="revoke-copy-btn" id="copy-revoke-btn">📋 Copy PB_REVOKED value</button>
+  <!-- Cold-start warning banner -->
+  <div id="cold-banner">
+    <span class="cold-text">⚠️ Database restored from env var backup. Generate keys or paste the backup into <strong>PB_KEYS_DB</strong> in Vercel to persist after cold starts.</span>
+    <button class="cold-copy-btn" id="cold-copy-btn">📋 Copy DB backup</button>
   </div>
 
   <div class="main-layout">
-    <!-- ── Sidebar ── -->
+    <!-- Sidebar -->
     <div class="sidebar">
-      <!-- Stats -->
       <div>
-        <div class="section-label">Overview</div>
+        <div class="sec-label">Overview</div>
         <div class="stats-grid">
-          <div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-lbl">Total</div></div>
-          <div class="stat-box"><div class="stat-num green" id="stat-active">0</div><div class="stat-lbl">Active</div></div>
-          <div class="stat-box"><div class="stat-num purple" id="stat-used">0</div><div class="stat-lbl">Used</div></div>
-          <div class="stat-box"><div class="stat-num" id="stat-unused">0</div><div class="stat-lbl">Unused</div></div>
-          <div class="stat-box"><div class="stat-num red" id="stat-revoked">0</div><div class="stat-lbl">Revoked</div></div>
-          <div class="stat-box"><div class="stat-num" id="stat-pending">0</div><div class="stat-lbl">Today</div></div>
+          <div class="stat-box"><div class="stat-num" id="s-total">0</div><div class="stat-lbl">Total</div></div>
+          <div class="stat-box"><div class="stat-num g" id="s-active">0</div><div class="stat-lbl">Active</div></div>
+          <div class="stat-box"><div class="stat-num p" id="s-used">0</div><div class="stat-lbl">Used</div></div>
+          <div class="stat-box"><div class="stat-num y" id="s-fresh">0</div><div class="stat-lbl">Unused</div></div>
+          <div class="stat-box"><div class="stat-num r" id="s-revoked">0</div><div class="stat-lbl">Revoked</div></div>
+          <div class="stat-box"><div class="stat-num" id="s-today">0</div><div class="stat-lbl">Today</div></div>
         </div>
       </div>
 
       <div class="divider"></div>
 
-      <!-- Generate -->
       <div>
-        <div class="section-label">Generate Keys</div>
+        <div class="sec-label">Generate Keys</div>
         <div class="gen-card">
-          <label for="gen-count">Number of keys (1–200)</label>
+          <label>Number of keys (1–200)</label>
           <input id="gen-count" class="field-input" type="number" min="1" max="200" value="1" />
-          <label for="gen-note">Note / Customer tag (optional)</label>
+          <label>Note / Customer tag (optional)</label>
           <input id="gen-note" class="field-input" type="text" placeholder="e.g. Order #1234, John Doe" maxlength="120" />
           <button class="gen-btn" id="gen-btn">⚡ Generate Keys</button>
+          <div id="keys-output" class="keys-output"></div>
+          <button id="copy-all-btn" class="side-btn" style="display:none">📋 Copy All Keys</button>
         </div>
       </div>
 
-      <!-- Output -->
+      <div class="divider"></div>
+
       <div>
-        <div id="keys-output" class="keys-output"></div>
-        <button id="copy-all-btn" class="copy-all-btn">📋 Copy All Keys</button>
-        <button id="export-btn" class="export-btn">⬇ Export All Keys (JSON)</button>
+        <div class="sec-label">Data</div>
+        <button id="export-btn" class="side-btn">⬇ Export Keys (JSON)</button>
       </div>
     </div>
 
-    <!-- ── Table ── -->
+    <!-- Table -->
     <div class="table-area">
-      <div class="table-toolbar">
+      <div class="toolbar">
         <div class="filter-pills">
-          <button class="filter-pill active" data-filter="all">All</button>
-          <button class="filter-pill" data-filter="active">Active</button>
-          <button class="filter-pill" data-filter="used">Used</button>
-          <button class="filter-pill" data-filter="unused">Unused</button>
-          <button class="filter-pill" data-filter="revoked">Revoked</button>
+          <button class="fpill on" data-f="all">All</button>
+          <button class="fpill" data-f="active">Active</button>
+          <button class="fpill" data-f="used">Used</button>
+          <button class="fpill" data-f="fresh">Unused</button>
+          <button class="fpill" data-f="revoked">Revoked</button>
         </div>
-        <input id="search-input" class="search-input" type="text" placeholder="Search key or note…" />
+        <input id="search" class="search-input" type="text" placeholder="Search key or note…" />
         <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
       </div>
 
@@ -351,13 +212,15 @@
             <tr>
               <th>License Key</th>
               <th>Status</th>
+              <th>Device</th>
               <th>Note</th>
               <th>Created</th>
+              <th>Activated</th>
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody id="keys-tbody">
-            <tr><td colspan="5" class="empty-row">No keys yet. Generate some on the left.</td></tr>
+          <tbody id="tbody">
+            <tr><td colspan="7" class="empty-row">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -368,334 +231,276 @@
 <div id="toast" class="toast"></div>
 
 <script>
-// ─── State ────────────────────────────────────────────────────────────────────
-let _pass     = "";
-let _filter   = "all";
-let _search   = "";
-const LS_KEY  = "pb_admin_keys_v2";   // localStorage key for all generated keys
-const LS_PASS = "pb_admin_sess";
+let _pass   = "";
+let _keys   = [];   // full list from server
+let _filter = "all";
+let _search = "";
 
-// Stored key shape: { key, note, createdAt, revoked, validated, usedAt? }
+const SESS = "pb_admin_sess";
 
-function loadKeys()       { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; } }
-function saveKeys(keys)   { localStorage.setItem(LS_KEY, JSON.stringify(keys)); }
-
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// ── Toast ────────────────────────────────────────────────────────────────────
 function toast(msg, type = "") {
   const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.className   = "toast " + type;
-  void el.offsetWidth;
-  el.classList.add("show");
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove("show"), 2800);
+  el.textContent = msg; el.className = "toast " + type;
+  void el.offsetWidth; el.classList.add("show");
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("show"), 3000);
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-async function tryLogin() {
-  const pw = document.getElementById("pw-input").value.trim();
-  if (!pw) return;
-  const errEl = document.getElementById("login-error");
-  errEl.style.display = "none";
-  try {
-    const r = await fetch("/api/admin/list", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pw }),
-    });
-    const d = await r.json();
-    if (!d.ok) { errEl.style.display = "block"; return; }
-    _pass = pw;
-    sessionStorage.setItem(LS_PASS, pw);
-    showApp();
-  } catch {
-    errEl.textContent = "Server unreachable.";
-    errEl.style.display = "block";
-  }
-}
-
-function showApp() {
-  document.getElementById("login-screen").style.display = "none";
-  const app = document.getElementById("admin-app");
-  app.style.display = "flex";
-  renderAll();
-}
-
-function logout() {
-  _pass = "";
-  sessionStorage.removeItem(LS_PASS);
-  document.getElementById("login-screen").style.display = "flex";
-  document.getElementById("admin-app").style.display = "none";
-  document.getElementById("pw-input").value = "";
-}
-
-// ─── Admin API ────────────────────────────────────────────────────────────────
-async function api(endpoint, body = {}) {
-  const r = await fetch(endpoint, {
+// ── API ──────────────────────────────────────────────────────────────────────
+async function api(url, body = {}) {
+  const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password: _pass, ...body }),
   });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
 
-// ─── Generate ─────────────────────────────────────────────────────────────────
+// ── Auth ─────────────────────────────────────────────────────────────────────
+async function tryLogin() {
+  const pw = document.getElementById("pw").value.trim();
+  if (!pw) return;
+  const errEl = document.getElementById("login-err");
+  errEl.style.display = "none";
+  try {
+    const d = await api("/api/admin/list", { password: pw }).catch(() => null);
+    if (!d || !d.ok) { errEl.style.display = "block"; return; }
+    _pass = pw;
+    sessionStorage.setItem(SESS, pw);
+    document.getElementById("login-screen").style.display = "none";
+    const app = document.getElementById("admin-app");
+    app.style.display = "flex";
+    _keys = d.keys || [];
+    renderAll();
+  } catch { errEl.textContent = "Server unreachable."; errEl.style.display = "block"; }
+}
+
+function logout() {
+  _pass = ""; sessionStorage.removeItem(SESS);
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("admin-app").style.display = "none";
+  document.getElementById("pw").value = "";
+}
+
+// ── Refresh ──────────────────────────────────────────────────────────────────
+async function refreshList() {
+  const btn = document.getElementById("refresh-btn");
+  btn.classList.add("spinning");
+  try {
+    const d = await api("/api/admin/list");
+    if (!d.ok) { toast("Refresh failed.", "error"); return; }
+    _keys = d.keys || [];
+    renderAll();
+    toast("Refreshed ✓", "success");
+  } catch { toast("Server error.", "error"); }
+  finally { btn.classList.remove("spinning"); }
+}
+
+// ── Generate ─────────────────────────────────────────────────────────────────
 async function generateKeys() {
   const count = Math.min(parseInt(document.getElementById("gen-count").value) || 1, 200);
   const note  = document.getElementById("gen-note").value.trim();
   const btn   = document.getElementById("gen-btn");
   btn.disabled = true; btn.textContent = "Generating…";
-
   try {
     const d = await api("/api/admin/generate", { count, note });
     if (!d.ok) { toast("Generation failed.", "error"); return; }
-
-    // Store in localStorage
-    const stored = loadKeys();
-    const now = Date.now();
-    d.keys.forEach(k => stored.unshift({ key: k, note, createdAt: now, revoked: false, validated: true }));
-    saveKeys(stored);
-
-    // Show output
     const out = document.getElementById("keys-output");
-    out.textContent   = d.keys.join("\n");
-    out.style.display = "block";
-    const copyBtn = document.getElementById("copy-all-btn");
-    copyBtn.style.display = "block";
-    copyBtn.dataset.keys  = d.keys.join("\n");
-
+    out.textContent = d.keys.join("\n"); out.style.display = "block";
+    const cb = document.getElementById("copy-all-btn");
+    cb.style.display = "block"; cb.dataset.keys = d.keys.join("\n");
     toast(`✅ ${d.keys.length} key${d.keys.length > 1 ? "s" : ""} generated!`, "success");
-    renderAll();
+    await refreshList();
   } catch { toast("Server error.", "error"); }
-  finally  { btn.disabled = false; btn.textContent = "⚡ Generate Keys"; }
+  finally { btn.disabled = false; btn.textContent = "⚡ Generate Keys"; }
 }
 
-// ─── Validate all keys against server (checks PB_REVOKED) ────────────────────
-async function validateAll() {
-  const btn = document.getElementById("validate-all-btn");
-  btn.style.opacity = ".5";
-  btn.style.pointerEvents = "none";
-  toast("Validating keys…", "info");
-
-  const stored = loadKeys();
-  if (!stored.length) { toast("No keys to validate.", ""); btn.style.opacity = "1"; btn.style.pointerEvents = ""; return; }
-
-  let updated = 0;
-  // Batch validate — call /api/admin/validate for each key
-  await Promise.allSettled(
-    stored.map(async (entry, i) => {
-      try {
-        const d = await api("/api/admin/validate", { key: entry.key });
-        if (d.ok) {
-          // If server says it's revoked (in PB_REVOKED) but local says active — sync
-          if (!d.active && !stored[i].revoked) {
-            stored[i].revoked = true;
-            updated++;
-          }
-        }
-      } catch {}
-    })
-  );
-
-  saveKeys(stored);
-  renderAll();
-  toast(updated > 0 ? `Synced ${updated} revoked key(s) from server.` : "All keys in sync ✓", "success");
-  btn.style.opacity = "1";
-  btn.style.pointerEvents = "";
+// ── Row actions ──────────────────────────────────────────────────────────────
+async function revokeKey(key) {
+  if (!confirm(`Revoke:\n${key}\n\nUser will be locked out immediately.`)) return;
+  try {
+    const d = await api("/api/admin/revoke", { key });
+    toast(d.ok ? "Key revoked." : (d.error || "Error"), d.ok ? "error" : "error");
+    if (d.ok) await refreshList();
+  } catch { toast("Server error.", "error"); }
 }
 
-// ─── Revoke locally ───────────────────────────────────────────────────────────
-function revokeKey(keyStr) {
-  if (!confirm(`Revoke key:\n${keyStr}\n\nThis will mark it locally as revoked. You will then need to copy the value to PB_REVOKED in Vercel and redeploy to enforce it server-side.`)) return;
-  const stored = loadKeys();
-  const idx = stored.findIndex(e => e.key === keyStr);
-  if (idx !== -1) { stored[idx].revoked = true; saveKeys(stored); }
-  toast("Marked as revoked. See the banner above to copy to Vercel.", "error");
-  renderAll();
+async function unrevokeKey(key) {
+  try {
+    const d = await api("/api/admin/unrevoke", { key });
+    toast(d.ok ? "Key restored ✓" : (d.error || "Error"), d.ok ? "success" : "error");
+    if (d.ok) await refreshList();
+  } catch { toast("Server error.", "error"); }
 }
 
-function restoreKey(keyStr) {
-  const stored = loadKeys();
-  const idx = stored.findIndex(e => e.key === keyStr);
-  if (idx !== -1) { stored[idx].revoked = false; saveKeys(stored); }
-  toast("Key restored. Remove it from PB_REVOKED in Vercel and redeploy.", "success");
-  renderAll();
+async function resetDevice(key) {
+  if (!confirm(`Reset device for:\n${key}\n\nUser can activate on a new device.`)) return;
+  try {
+    const d = await api("/api/admin/reset-device", { key });
+    toast(d.ok ? "Device reset ✓" : (d.error || "Error"), d.ok ? "success" : "error");
+    if (d.ok) await refreshList();
+  } catch { toast("Server error.", "error"); }
 }
 
-function deleteLocalKey(keyStr) {
-  if (!confirm(`Remove "${keyStr}" from this admin panel?\n\nNote: if the key has been given to a customer it still works unless revoked.`)) return;
-  const stored = loadKeys().filter(e => e.key !== keyStr);
-  saveKeys(stored);
-  toast("Removed from local list.", "");
-  renderAll();
+async function deleteKey(key) {
+  if (!confirm(`Permanently delete:\n${key}\n\nThis cannot be undone.`)) return;
+  try {
+    const d = await api("/api/admin/delete", { key });
+    toast(d.ok ? "Deleted." : (d.error || "Error"), d.ok ? "info" : "error");
+    if (d.ok) await refreshList();
+  } catch { toast("Server error.", "error"); }
 }
 
-function copyKeyToClipboard(keyStr) {
-  navigator.clipboard.writeText(keyStr).then(() => toast("Key copied!", "success"));
+function copyKey(key) {
+  navigator.clipboard.writeText(key).then(() => toast("Copied!", "success"));
 }
 
-// ─── Render ───────────────────────────────────────────────────────────────────
-function renderAll() {
-  renderStats();
-  renderTable();
-  renderRevokeBanner();
+// ── Backup ───────────────────────────────────────────────────────────────────
+async function backupDB() {
+  try {
+    const d = await api("/api/admin/backup");
+    if (!d.ok) { toast("Backup failed.", "error"); return; }
+    await navigator.clipboard.writeText(d.b64);
+    toast(`DB backup copied (${d.count} keys). Paste into PB_KEYS_DB in Vercel.`, "warn");
+    document.getElementById("cold-banner").classList.remove("show");
+  } catch { toast("Could not copy backup.", "error"); }
 }
+
+// ── Export ───────────────────────────────────────────────────────────────────
+function exportJSON() {
+  const data = JSON.stringify(_keys, null, 2);
+  const a    = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(new Blob([data], { type: "application/json" })),
+    download: `printbot-keys-${new Date().toISOString().slice(0,10)}.json`,
+  });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderAll() { renderStats(); renderTable(); }
 
 function renderStats() {
-  const keys    = loadKeys();
-  const total   = keys.length;
-  const revoked = keys.filter(k => k.revoked).length;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const total   = _keys.length;
+  const revoked = _keys.filter(k => !k.active).length;
   const active  = total - revoked;
-  // "Used" = no createdAt note but we track via a usedAt field set on validate
-  // For now, show active with note as "with customer" — just show all active
-  const today   = keys.filter(k => {
-    const d = new Date(k.createdAt); const n = new Date();
-    return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
-  }).length;
-
-  document.getElementById("stat-total").textContent   = total;
-  document.getElementById("stat-active").textContent  = active;
-  document.getElementById("stat-used").textContent    = keys.filter(k => !k.revoked && k.note).length;
-  document.getElementById("stat-unused").textContent  = keys.filter(k => !k.revoked && !k.note).length;
-  document.getElementById("stat-revoked").textContent = revoked;
-  document.getElementById("stat-pending").textContent = today;
+  const used    = _keys.filter(k => k.active && k.deviceId).length;
+  const fresh   = _keys.filter(k => k.active && !k.deviceId).length;
+  const todayCt = _keys.filter(k => k.createdAt && new Date(k.createdAt) >= today).length;
+  document.getElementById("s-total").textContent   = total;
+  document.getElementById("s-active").textContent  = active;
+  document.getElementById("s-used").textContent    = used;
+  document.getElementById("s-fresh").textContent   = fresh;
+  document.getElementById("s-revoked").textContent = revoked;
+  document.getElementById("s-today").textContent   = todayCt;
 }
 
 function renderTable() {
-  const tbody  = document.getElementById("keys-tbody");
-  let rows     = loadKeys();
+  const tbody = document.getElementById("tbody");
+  let rows = _keys;
 
-  if (_filter === "active")  rows = rows.filter(k => !k.revoked);
-  if (_filter === "used")    rows = rows.filter(k => !k.revoked && k.note);
-  if (_filter === "unused")  rows = rows.filter(k => !k.revoked && !k.note);
-  if (_filter === "revoked") rows = rows.filter(k => k.revoked);
+  if (_filter === "active")  rows = rows.filter(k => k.active);
+  if (_filter === "used")    rows = rows.filter(k => k.active && k.deviceId);
+  if (_filter === "fresh")   rows = rows.filter(k => k.active && !k.deviceId);
+  if (_filter === "revoked") rows = rows.filter(k => !k.active);
 
   if (_search) {
     const q = _search.toLowerCase();
-    rows = rows.filter(k => k.key.toLowerCase().includes(q) || (k.note || "").toLowerCase().includes(q));
+    rows = rows.filter(k =>
+      k.key.toLowerCase().includes(q) ||
+      (k.note||"").toLowerCase().includes(q) ||
+      (k.deviceId||"").toLowerCase().includes(q)
+    );
   }
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-row">No keys match this filter.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-row">No keys found.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = rows.map(entry => {
-    const isRevoked = entry.revoked;
-    const hasNote   = !!(entry.note && entry.note.trim());
+  tbody.innerHTML = rows.map(k => {
+    const isRevoked = !k.active;
+    const isUsed    = k.active && k.deviceId;
 
-    let pillHtml;
-    if (isRevoked) {
-      pillHtml = `<span class="pill revoked"><span class="pill-dot"></span>Revoked</span>`;
-    } else if (hasNote) {
-      pillHtml = `<span class="pill used"><span class="pill-dot"></span>Active · With Customer</span>`;
+    let pill;
+    if (isRevoked)    pill = `<span class="pill revoked"><span class="pill-dot"></span>Revoked</span>`;
+    else if (isUsed)  pill = `<span class="pill used"><span class="pill-dot"></span>Activated</span>`;
+    else              pill = `<span class="pill fresh"><span class="pill-dot"></span>Unused</span>`;
+
+    const device = k.deviceId
+      ? `<span title="${esc(k.deviceId)}" style="font-family:monospace;font-size:11px;color:#374151">${esc(k.deviceId.slice(0,14))}…</span>`
+      : `<span style="color:#1f2937">—</span>`;
+
+    let actions = `<div class="row-actions">`;
+    if (!isRevoked) {
+      actions += `<button class="row-btn revoke" onclick="revokeKey('${esc(k.key)}')">Revoke</button>`;
+      if (k.deviceId)
+        actions += `<button class="row-btn reset-dev" onclick="resetDevice('${esc(k.key)}')">Reset Device</button>`;
     } else {
-      pillHtml = `<span class="pill unused"><span class="pill-dot"></span>Active · Unused</span>`;
+      actions += `<button class="row-btn restore" onclick="unrevokeKey('${esc(k.key)}')">Restore</button>`;
     }
-
-    const created = entry.createdAt ? fmtDate(entry.createdAt) : "—";
-    const noteHtml = entry.note
-      ? `<span class="note-text" title="${esc(entry.note)}">${esc(entry.note)}</span>`
-      : `<span style="color:#374151">—</span>`;
-
-    const actions = isRevoked
-      ? `<div class="row-actions">
-           <button class="row-btn restore" onclick="restoreKey('${esc(entry.key)}')">Restore</button>
-           <button class="row-btn" onclick="copyKeyToClipboard('${esc(entry.key)}')">Copy</button>
-           <button class="row-btn" style="color:#4b5563" onclick="deleteLocalKey('${esc(entry.key)}')">Remove</button>
-         </div>`
-      : `<div class="row-actions">
-           <button class="row-btn revoke" onclick="revokeKey('${esc(entry.key)}')">Revoke</button>
-           <button class="row-btn" onclick="copyKeyToClipboard('${esc(entry.key)}')">Copy</button>
-           <button class="row-btn" style="color:#4b5563" onclick="deleteLocalKey('${esc(entry.key)}')">Remove</button>
-         </div>`;
+    actions += `<button class="row-btn" onclick="copyKey('${esc(k.key)}')">Copy</button>`;
+    actions += `<button class="row-btn" style="color:#1f2937" onclick="deleteKey('${esc(k.key)}')">Delete</button>`;
+    actions += `</div>`;
 
     return `<tr>
-      <td><span class="key-mono" onclick="copyKeyToClipboard('${esc(entry.key)}')" title="Click to copy">${esc(entry.key)}</span></td>
-      <td>${pillHtml}</td>
-      <td>${noteHtml}</td>
-      <td class="date-text">${created}</td>
+      <td><span class="key-mono" onclick="copyKey('${esc(k.key)}')" title="Click to copy">${esc(k.key)}</span></td>
+      <td>${pill}</td>
+      <td>${device}</td>
+      <td><span class="note-txt" title="${esc(k.note||"")}">${esc(k.note||"—")}</span></td>
+      <td class="date-txt">${k.createdAt ? fmt(k.createdAt) : "—"}</td>
+      <td class="date-txt">${k.activatedAt ? fmt(k.activatedAt) : "—"}</td>
       <td>${actions}</td>
     </tr>`;
   }).join("");
 }
 
-function renderRevokeBanner() {
-  const revoked = loadKeys().filter(k => k.revoked).map(k => k.key);
-  const banner  = document.getElementById("revoke-banner");
-  if (!revoked.length) { banner.classList.remove("visible"); return; }
-  banner.classList.add("visible");
-  document.getElementById("revoke-count").textContent   = revoked.length;
-  document.getElementById("revoke-preview").textContent =
-    revoked.length <= 2 ? revoked.join(",") : revoked[0] + ",…+" + (revoked.length - 1) + " more";
-  document.getElementById("copy-revoke-btn").dataset.val = revoked.join(",");
-}
-
-// ─── Export ───────────────────────────────────────────────────────────────────
-function exportKeys() {
-  const data   = JSON.stringify(loadKeys(), null, 2);
-  const blob   = new Blob([data], { type: "application/json" });
-  const url    = URL.createObjectURL(blob);
-  const a      = document.createElement("a");
-  a.href       = url;
-  a.download   = `printbot-keys-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtDate(ts) {
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(ts) {
   const d = new Date(ts);
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-       + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
+    +" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
 }
 function esc(s) {
-  return String(s || "")
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-// ─── Event listeners ──────────────────────────────────────────────────────────
+// ── Events ───────────────────────────────────────────────────────────────────
 document.getElementById("login-btn").addEventListener("click", tryLogin);
-document.getElementById("pw-input").addEventListener("keydown", e => { if (e.key === "Enter") tryLogin(); });
+document.getElementById("pw").addEventListener("keydown", e => e.key==="Enter" && tryLogin());
 document.getElementById("logout-btn").addEventListener("click", logout);
 document.getElementById("gen-btn").addEventListener("click", generateKeys);
-document.getElementById("validate-all-btn").addEventListener("click", validateAll);
-document.getElementById("refresh-btn").addEventListener("click", () => { renderAll(); toast("Refreshed.", "info"); });
-document.getElementById("export-btn").addEventListener("click", exportKeys);
-
-document.getElementById("copy-all-btn").addEventListener("click", function() {
+document.getElementById("refresh-btn").addEventListener("click", refreshList);
+document.getElementById("backup-btn").addEventListener("click", backupDB);
+document.getElementById("export-btn").addEventListener("click", exportJSON);
+document.getElementById("copy-all-btn").addEventListener("click", function(){
   navigator.clipboard.writeText(this.dataset.keys).then(() => toast("All keys copied!", "success"));
 });
-document.getElementById("copy-revoke-btn").addEventListener("click", function() {
-  navigator.clipboard.writeText(this.dataset.val).then(() => toast("PB_REVOKED value copied! Paste it in Vercel env vars.", "success"));
-});
+document.getElementById("cold-copy-btn").addEventListener("click", backupDB);
 
-document.getElementById("search-input").addEventListener("input", function() {
-  _search = this.value.trim(); renderTable();
-});
-document.querySelectorAll(".filter-pill").forEach(btn => {
-  btn.addEventListener("click", function() {
-    document.querySelectorAll(".filter-pill").forEach(b => b.classList.remove("active"));
-    this.classList.add("active");
-    _filter = this.dataset.filter;
-    renderTable();
-  });
-});
+document.getElementById("search").addEventListener("input", function(){ _search = this.value.trim(); renderTable(); });
 
-// ─── Auto-login on page reload ────────────────────────────────────────────────
+document.querySelectorAll(".fpill").forEach(b => b.addEventListener("click", function(){
+  document.querySelectorAll(".fpill").forEach(x => x.classList.remove("on"));
+  this.classList.add("on"); _filter = this.dataset.f; renderTable();
+}));
+
+// ── Auto-login ───────────────────────────────────────────────────────────────
 (async () => {
-  const saved = sessionStorage.getItem(LS_PASS);
+  const saved = sessionStorage.getItem(SESS);
   if (!saved) return;
+  _pass = saved;
   try {
-    const r = await fetch("/api/admin/list", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: saved }),
-    });
-    const d = await r.json();
-    if (d.ok) { _pass = saved; showApp(); }
-    else sessionStorage.removeItem(LS_PASS);
-  } catch {}
+    const d = await api("/api/admin/list");
+    if (d.ok) {
+      document.getElementById("login-screen").style.display = "none";
+      const app = document.getElementById("admin-app");
+      app.style.display = "flex";
+      _keys = d.keys || [];
+      renderAll();
+    } else { sessionStorage.removeItem(SESS); _pass = ""; }
+  } catch { sessionStorage.removeItem(SESS); _pass = ""; }
 })();
 </script>
 </body>
