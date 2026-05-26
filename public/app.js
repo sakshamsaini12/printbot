@@ -1,13 +1,14 @@
 /* ═══════════════════════════════════════════════════════════
    LICENSE SYSTEM  — server-validated, no secrets in client
+   Demo counter tracked server-side by IP (not localStorage)
+   so clearing browser data does NOT reset the demo limit.
    ═══════════════════════════════════════════════════════════ */
 const LICENSE = (() => {
   const DEMO_LIMIT = 5;
   const LS_DEVICE  = "pb_device_id";
   const LS_LICENSE = "pb_license";
-  const LS_UPLOADS = "pb_demo_uploads";
 
-  // ── Device ID (persistent UUID) ──────────────────────────
+  // ── Device ID ────────────────────────────────────────────
   function uuid() {
     return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
       (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)).toUpperCase();
@@ -22,80 +23,101 @@ const LICENSE = (() => {
     try { return JSON.parse(localStorage.getItem(LS_LICENSE)); } catch { return null; }
   }
 
-  // ── Activate via server ──────────────────────────────────
+  // ── Activate ─────────────────────────────────────────────
   async function activate(key) {
-    const clean    = key.trim().toUpperCase();
+    const clean    = key.trim().toUpperCase().replace(/[^A-Z0-9\-]/g, "").slice(0, 30);
     const deviceId = getDeviceId();
-    let res, data;
     try {
-      res  = await fetch("/api/activate", {
+      const res  = await fetch("/api/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: clean, deviceId }),
       });
-      data = await res.json();
+      const data = await res.json();
+      if (!data.ok) return { ok: false, msg: data.msg || "Activation failed." };
+      localStorage.setItem(LS_LICENSE, JSON.stringify({
+        key: clean, deviceId, token: data.token, activatedAt: Date.now(),
+      }));
+      return { ok: true };
     } catch {
       return { ok: false, msg: "Cannot reach license server. Check your connection." };
     }
-    if (!data.ok) return { ok: false, msg: data.msg || "Activation failed." };
-
-    // Store signed token returned by server
-    localStorage.setItem(LS_LICENSE, JSON.stringify({
-      key: clean, deviceId, token: data.token, activatedAt: Date.now(),
-    }));
-    return { ok: true };
   }
 
-  // ── Verify stored license with server ────────────────────
+  // ── Verify ───────────────────────────────────────────────
   async function verify() {
     const stored = getLicense();
     if (!stored || !stored.token) return false;
     const deviceId = getDeviceId();
     if (stored.deviceId !== deviceId) return false;
-    let res, data;
     try {
-      res  = await fetch("/api/verify", {
+      const res  = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: stored.key, deviceId, token: stored.token }),
       });
-      data = await res.json();
+      const data = await res.json();
+      if (!data.ok) { localStorage.removeItem(LS_LICENSE); return false; }
+      return true;
     } catch {
-      // If server unreachable but we have a cached valid token, allow offline access
-      // Only grant offline grace if the token exists and is recent (within last 30 days)
-      const activatedAt = stored.activatedAt || Date.now();
-      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-      if (activatedAt > thirtyDaysAgo) {
-        return true; // Offline grace: recent activation, trust the cached token
-      }
-      return false; // License too old, require server verification
+      // Offline grace: allow if activated within last 30 days
+      const ago30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      return (stored.activatedAt || 0) > ago30;
     }
-    if (!data.ok) {
-      // Key revoked — clear stored license
-      localStorage.removeItem(LS_LICENSE);
-      return false;
-    }
-    return true;
   }
 
-  // ── Demo counter ─────────────────────────────────────────
-  function getDemoCount()  { return parseInt(localStorage.getItem(LS_UPLOADS) || "0", 10); }
-  function incrementDemo() { const n = getDemoCount()+1; localStorage.setItem(LS_UPLOADS, n); return n; }
-  function isDemo()        { return getDemoCount() < DEMO_LIMIT; }
-  function demoRemaining() { return Math.max(0, DEMO_LIMIT - getDemoCount()); }
+  // ── Demo counter — SERVER-SIDE (IP-based, bypass-proof) ──
+  // _demoRemaining is a cache so badge updates stay synchronous.
+  let _demoRemaining = DEMO_LIMIT;
+
+  async function refreshDemoCount() {
+    try {
+      const res  = await fetch("/api/demo/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: getDeviceId() }),
+      });
+      const data = await res.json();
+      if (data.ok) _demoRemaining = data.remaining;
+    } catch {
+      // Server unreachable — keep current cached value
+    }
+  }
+
+  /** Consume `count` demo slots server-side. Returns { ok, remaining }. */
+  async function useDemo(count = 1) {
+    try {
+      const res  = await fetch("/api/demo/use", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: getDeviceId(), count }),
+      });
+      const data = await res.json();
+      if (typeof data.remaining === "number") _demoRemaining = data.remaining;
+      return data;
+    } catch {
+      // Offline fallback: decrement locally
+      _demoRemaining = Math.max(0, _demoRemaining - count);
+      return { ok: _demoRemaining >= 0, remaining: _demoRemaining };
+    }
+  }
+
+  function demoRemaining() { return _demoRemaining; }
+  function isDemo()        { return _demoRemaining > 0; }
 
   // ── Public state ─────────────────────────────────────────
   let _active = false;
 
   async function init() {
     _active = await verify();
+    if (!_active) await refreshDemoCount();
     return _active;
   }
-  function isActive()    { return _active; }
-  function setActive(v)  { _active = v; }
+  function isActive()   { return _active; }
+  function setActive(v) { _active = v; }
 
   return { init, isActive, setActive, activate,
-           getDemoCount, incrementDemo, isDemo, demoRemaining, DEMO_LIMIT };
+           useDemo, refreshDemoCount, isDemo, demoRemaining, DEMO_LIMIT };
 })();
 
 const A4 = {
@@ -589,29 +611,31 @@ async function loadFiles(fileList) {
   const files = Array.from(fileList);
   if (!files.length) return;
 
-  // ── License / demo check ──────────────────────────────
-  let filesToLoad = Array.from(files);  // Make a mutable copy
+  // ── License / demo check (server-side — IP-based, not clearable) ──
+  let filesToLoad = Array.from(files);
 
   if (!LICENSE.isActive()) {
+    // Always get fresh count from server before allowing upload
+    await LICENSE.refreshDemoCount();
     const remaining = LICENSE.demoRemaining();
+
     if (remaining <= 0) {
       showActivationModal("You've used all 5 free demo uploads. Activate your license to continue.");
       return;
     }
-    // Count each file added toward the demo limit
-    const newCount = LICENSE.getDemoCount() + filesToLoad.length;
-    if (newCount > LICENSE.DEMO_LIMIT) {
-      const allowed = LICENSE.DEMO_LIMIT - LICENSE.getDemoCount();
-      if (allowed <= 0) {
-        showActivationModal("You've used all 5 free demo uploads. Activate your license to continue.");
-        return;
-      }
-      // Allow only up to the limit
-      filesToLoad = filesToLoad.slice(0, allowed);
-      setStatus(`Demo: only ${allowed} more file${allowed > 1 ? "s" : ""} allowed. Activate for unlimited.`);
+
+    // Trim files to what's allowed
+    if (filesToLoad.length > remaining) {
+      filesToLoad = filesToLoad.slice(0, remaining);
+      setStatus(`Demo: only ${remaining} more file${remaining !== 1 ? "s" : ""} allowed. Activate for unlimited.`);
     }
-    // Increment demo counter by however many files we're actually loading
-    for (let i = 0; i < filesToLoad.length; i++) LICENSE.incrementDemo();
+
+    // Consume demo slots server-side
+    const result = await LICENSE.useDemo(filesToLoad.length);
+    if (!result.ok && filesToLoad.length > 0) {
+      showActivationModal("You've used all 5 free demo uploads. Activate your license to continue.");
+      return;
+    }
     updateLicenseBadge();
   }
 
