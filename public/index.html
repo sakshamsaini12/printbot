@@ -208,6 +208,23 @@
       .preview-tab.active { background: #7C3AED; color: #ffffff; }
       .preview-tab:not(.active):hover { color: #111827; background: rgba(0,0,0,0.04); }
 
+      /* ── Mobile Editor Toggle ─────────────────── */
+      @media (max-width: 767px) {
+        /* Preset cards smaller on mobile */
+        .material-symbols-outlined.text-4xl { font-size: 1.75rem; }
+
+        /* When in preview mode on mobile: hide sidebar, show main */
+        #editor-view.mobile-preview aside { display: none !important; }
+        #editor-view.mobile-preview #editor-main {
+          display: flex !important;
+          margin-left: 0 !important;
+        }
+
+        /* Prevent horizontal overflow */
+        body { overflow-x: hidden; }
+        #editor-view { overflow-x: hidden; }
+      }
+
       /* Step done indicator */
       .step-done .step-status-label {
         color: #16a34a;
@@ -429,30 +446,33 @@
   <body class="bg-background text-gray-900 font-body overflow-x-hidden min-h-screen">
     
     <!-- Dashboard View Container -->
-    <div id="dashboard-view" class="min-h-screen p-8 bg-surface-dim">
-      <div class="max-w-6xl mx-auto space-y-10">
+    <div id="dashboard-view" class="min-h-screen p-4 sm:p-8 bg-surface-dim">
+      <div class="max-w-6xl mx-auto space-y-6 sm:space-y-10">
         <!-- Hero section -->
-        <div class="flex justify-between items-center py-6 border-b border-outline">
+        <div class="flex flex-wrap gap-3 justify-between items-center py-4 sm:py-6 border-b border-outline">
           <div class="flex items-center gap-3">
-            <img class="brand-logo" src="assets/shopship_logo.jpg" alt="ShopShip Logo" style="width: 50px; height: 50px; border-radius: 10px; object-fit: cover;" />
+            <img class="brand-logo" src="assets/shopship_logo.jpg" alt="ShopShip Logo" style="width: 42px; height: 42px; border-radius: 10px; object-fit: cover;" />
             <div>
-              <h1 class="font-title text-2xl font-bold tracking-tight text-gray-900">PrintBot Dashboard</h1>
-              <p class="text-xs text-gray-500 uppercase tracking-wider font-bold">Premium Layout Workspace</p>
+              <h1 class="font-title text-lg sm:text-2xl font-bold tracking-tight text-gray-900">PrintBot Dashboard</h1>
+              <p class="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider font-bold">Premium Layout Workspace</p>
             </div>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
             <!-- Instagram button -->
             <a href="https://www.instagram.com/its.shopship/" target="_blank" rel="noopener noreferrer"
-              class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs text-white transition-all hover:scale-105 hover:shadow-lg active:scale-95"
+              class="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs text-white transition-all hover:scale-105 active:scale-95"
               style="background: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
                 <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
                 <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
               </svg>
-              Follow us
+              <span class="hidden xs:inline sm:inline">Follow us</span>
             </a>
-            <button class="px-4 py-2 border border-outline hover:bg-black/5 rounded-lg text-xs font-bold transition-all" id="btn-dashboard-help">Help &amp; Docs</button>
+            <button class="hidden sm:block px-3 py-2 border border-outline hover:bg-black/5 rounded-lg text-xs font-bold transition-all" id="btn-dashboard-help">Help &amp; Docs</button>
+            <button class="sm:hidden p-2 border border-outline hover:bg-black/5 rounded-lg transition-all" id="btn-dashboard-help-mobile" title="Help">
+              <span class="material-symbols-outlined text-base text-gray-500">help_outline</span>
+            </button>
           </div>
         </div>
 
@@ -461,19 +481,19 @@
           <!-- Animated background accent -->
           <div style="position: absolute; top: -50%; right: -50%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
 
-          <div class="relative p-8 flex items-center justify-between">
+          <div class="relative p-4 sm:p-8 flex items-center justify-between gap-3">
             <!-- Left side: Status info -->
-            <div class="flex items-center gap-6 flex-1">
+            <div class="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">
               <!-- License icon -->
-              <div style="width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3); flex-shrink: 0;">
-                <span style="font-size: 32px;">🔐</span>
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 12px rgba(245, 158, 11, 0.3); flex-shrink: 0;">
+                <span style="font-size: 24px;">🔐</span>
               </div>
 
               <!-- Status text -->
-              <div>
-                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">License Status</p>
-                <p id="license-status-text" class="font-title font-bold text-2xl text-amber-600">Demo · 5 files left</p>
-                <p class="text-xs text-gray-500 mt-2">Upgrade to unlock unlimited designs</p>
+              <div class="min-w-0">
+                <p class="text-[10px] sm:text-xs text-gray-500 uppercase font-bold tracking-wider mb-0.5">License Status</p>
+                <p id="license-status-text" class="font-title font-bold text-base sm:text-2xl text-amber-600 truncate">Demo · 5 files left</p>
+                <p class="text-[10px] sm:text-xs text-gray-500 mt-1">Upgrade to unlock unlimited designs</p>
 
                 <!-- License info (hidden when demo) -->
                 <div id="license-info-section" style="display: none; margin-top: 12px;">
@@ -492,8 +512,8 @@
             </div>
 
             <!-- Right side: CTA Button -->
-            <button class="px-7 py-4 rounded-xl font-bold text-sm transition-all duration-300 transform hover:scale-105 hover:shadow-xl active:scale-95 flex items-center gap-2 ml-4 flex-shrink-0" id="btn-activate-dashboard" style="background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%); color: white; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);">
-              <span style="font-size: 18px;">✨</span>
+            <button class="px-4 sm:px-7 py-2.5 sm:py-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 transform hover:scale-105 hover:shadow-xl active:scale-95 flex items-center gap-1.5 flex-shrink-0" id="btn-activate-dashboard" style="background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%); color: white; box-shadow: 0 6px 18px rgba(124, 58, 237, 0.4);">
+              <span style="font-size: 15px;">✨</span>
               <span>Activate</span>
             </button>
           </div>
@@ -502,43 +522,43 @@
         <!-- Presets / New Design Grid -->
         <div class="space-y-4">
           <h2 class="font-title text-lg font-bold text-gray-900">Start a New Design</h2>
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-primary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="circle">
+          <div class="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
+            <button class="preset-card group p-3 sm:p-6 rounded-xl sm:rounded-2xl border border-outline bg-surface-container-low hover:border-primary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="circle">
               <span class="material-symbols-outlined text-4xl text-primary" data-icon="circle">circle</span>
               <div>
                 <h3 class="font-bold text-sm text-gray-900">Circle</h3>
                 <p class="text-[10px] text-gray-500 mt-1">58 mm · 9/page</p>
               </div>
             </button>
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-secondary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="square">
+            <button class="preset-card group p-3 sm:p-6 rounded-xl sm:rounded-2xl border border-outline bg-surface-container-low hover:border-secondary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="square">
               <span class="material-symbols-outlined text-4xl text-secondary" data-icon="square">square</span>
               <div>
                 <h3 class="font-bold text-sm text-gray-900">Square</h3>
                 <p class="text-[10px] text-gray-500 mt-1">50 mm · 12/page</p>
               </div>
             </button>
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-accent-3/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="rectangle">
+            <button class="preset-card group p-3 sm:p-6 rounded-xl sm:rounded-2xl border border-outline bg-surface-container-low hover:border-accent-3/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="rectangle">
               <span class="material-symbols-outlined text-4xl text-accent-3" data-icon="rectangle">rectangle</span>
               <div>
                 <h3 class="font-bold text-sm text-gray-900">Rectangle</h3>
                 <p class="text-[10px] text-gray-500 mt-1">90x65 mm · 4/page</p>
               </div>
             </button>
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-accent-3/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="heart">
+            <button class="preset-card group p-3 sm:p-6 rounded-xl sm:rounded-2xl border border-outline bg-surface-container-low hover:border-accent-3/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="heart">
               <span class="material-symbols-outlined text-4xl text-accent-3" data-icon="favorite">favorite</span>
               <div>
                 <h3 class="font-bold text-sm text-gray-900">Heart</h3>
                 <p class="text-[10px] text-gray-500 mt-1">60 mm · 12/page</p>
               </div>
             </button>
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-primary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="hexagon">
+            <button class="preset-card group p-3 sm:p-6 rounded-xl sm:rounded-2xl border border-outline bg-surface-container-low hover:border-primary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="hexagon">
               <span class="material-symbols-outlined text-4xl text-primary" data-icon="hexagon">hexagon</span>
               <div>
                 <h3 class="font-bold text-sm text-gray-900">Hexagon</h3>
                 <p class="text-[10px] text-gray-500 mt-1">60 mm · 12/page</p>
               </div>
             </button>
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-accent-2/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="star">
+            <button class="preset-card group p-3 sm:p-6 rounded-xl sm:rounded-2xl border border-outline bg-surface-container-low hover:border-accent-2/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="star">
               <span class="material-symbols-outlined text-4xl text-accent-2" data-icon="grade">grade</span>
               <div>
                 <h3 class="font-bold text-sm text-gray-900">Star</h3>
@@ -642,6 +662,14 @@
           </div>
         </div>
 
+        <!-- Mobile: View Preview button -->
+        <div class="md:hidden p-3 border-t border-outline">
+          <button id="btn-mobile-preview" class="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95" style="background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%); color: white; box-shadow: 0 4px 14px rgba(124,58,237,0.35);">
+            <span class="material-symbols-outlined text-base">preview</span>
+            View Preview
+          </button>
+        </div>
+
         <!-- Sidebar Footer -->
         <div class="p-4 border-t border-outline bg-gray-100/50 flex flex-col items-center gap-1.5 text-[11px] text-gray-500">
           <div>Built by <span class="font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent-3">ShopShip</span></div>
@@ -657,13 +685,17 @@
       </aside>
 
       <!-- Main Workspace Stage -->
-      <main class="hidden md:flex ml-0 md:ml-panel-width flex-1 flex-col bg-surface-dim overflow-hidden">
+      <main id="editor-main" class="hidden md:flex ml-0 md:ml-panel-width flex-1 flex-col bg-surface-dim overflow-hidden">
         <!-- Header / Top Bar Controls -->
-        <header class="flex justify-between items-center h-16 px-8 bg-surface-container-low/80 backdrop-blur-md border-b border-outline sticky top-0 z-20">
-          <div class="flex items-center gap-4">
+        <header class="flex justify-between items-center h-14 sm:h-16 px-4 sm:px-8 bg-surface-container-low/80 backdrop-blur-md border-b border-outline sticky top-0 z-20">
+          <div class="flex items-center gap-2 sm:gap-4">
+            <!-- Mobile: back to edit -->
+            <button id="btn-mobile-back-edit" class="md:hidden flex items-center gap-1 text-xs text-primary font-bold border border-primary/30 bg-primary/5 px-2.5 py-1.5 rounded-lg transition-all">
+              <span class="material-symbols-outlined text-sm">edit</span> Edit
+            </button>
             <!-- Back button shows clean for dashboard navigation -->
             <button class="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 font-bold border border-outline hover:bg-black/5 px-3 py-1.5 rounded-lg transition-all" id="btn-back-dashboard">
-              <span class="material-symbols-outlined text-sm">arrow_back</span> Dashboard
+              <span class="material-symbols-outlined text-sm">arrow_back</span> <span class="hidden sm:inline">Dashboard</span>
             </button>
             <div class="h-4 w-[1px] bg-outline" id="btn-back-separator"></div>
             <!-- Logo + title -->
@@ -963,6 +995,35 @@
     </dialog>
 
     <script src="app.js" defer></script>
+    <script>
+      // Mobile editor: sidebar <-> canvas toggle
+      // Use event delegation so it works even after app.js rewires the DOM
+      document.addEventListener('click', function(e) {
+        // "View Preview" button — show canvas, hide sidebar
+        if (e.target.closest('#btn-mobile-preview')) {
+          e.stopPropagation();
+          var aside = document.querySelector('#editor-view aside');
+          var main  = document.getElementById('editor-main');
+          if (aside) aside.style.display = 'none';
+          if (main)  { main.style.display = 'flex'; main.style.marginLeft = '0'; }
+          return;
+        }
+        // "Edit" back button — show sidebar, hide canvas
+        if (e.target.closest('#btn-mobile-back-edit')) {
+          e.stopPropagation();
+          var aside = document.querySelector('#editor-view aside');
+          var main  = document.getElementById('editor-main');
+          if (aside) aside.style.display = '';
+          if (main)  { main.style.display = ''; main.style.marginLeft = ''; }
+          return;
+        }
+        // Mobile help icon — proxy to desktop help button
+        if (e.target.closest('#btn-dashboard-help-mobile')) {
+          var desktop = document.getElementById('btn-dashboard-help');
+          if (desktop) desktop.click();
+        }
+      }, true); // capture phase so it fires before app.js listeners
+    </script>
   </body>
 </html>
 
