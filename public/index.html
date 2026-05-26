@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>PrintBot Web Tool - ShopShip</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/jpeg" href="assets/shopship_logo.jpg" />
+    <link rel="stylesheet" href="styles.css" />
+    
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-dim": "#F3F4F6",
+              "surface-container-low": "#FFFFFF",
+              "surface-container": "#F9FAF5",
+              "surface-container-high": "#E5E7EB",
+              "surface-container-highest": "#D1D5DB",
+              "surface-container-lowest": "#F9FAF5",
+              "primary": "#7C3AED",
+              "on-primary": "#ffffff",
+              "secondary": "#0EA5E9",
+              "accent-2": "#D97706",
+              "accent-3": "#EC4899",
+              "outline": "rgba(0, 0, 0, 0.08)",
+              "background": "#F3F4F6",
+              "on-surface": "#1F2937",
+              "on-surface-variant": "#4B5563"
+            },
+            borderRadius: {
+              "DEFAULT": "8px",
+              "lg": "12px",
+              "xl": "16px",
+              "full": "9999px"
+            },
+            spacing: {
+              "panel-width": "340px",
+              "base": "8px",
+              "margin-desktop": "32px",
+              "gutter": "20px"
+            },
+            fontFamily: {
+              "title": ["Space Grotesk", "sans-serif"],
+              "body": ["Inter", "sans-serif"],
+              "mono": ["Space Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      }
+      .shimmer-btn:hover {
+        background-image: linear-gradient(45deg, transparent 25%, rgba(255,255,255,0.2) 50%, transparent 75%);
+        background-size: 200% 200%;
+        animation: shimmer 1.5s infinite;
+      }
+      @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+      }
+      .scroll-hide::-webkit-scrollbar { display: none; }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      
+      /* Preset shapes customization */
+      .shape-card {
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 6px;
+      }
+      .shape-card:hover {
+        transform: translateY(-2px);
+        background: rgba(0, 0, 0, 0.04);
+        border-color: rgba(0, 0, 0, 0.12);
+      }
+      .shape-card.active {
+        background: rgba(124, 58, 237, 0.08);
+        border-color: #7C3AED;
+        box-shadow: 0 0 15px rgba(124, 58, 237, 0.15);
+      }
+      .shape-card.active[data-shape="square"] {
+        background: rgba(14, 165, 233, 0.08);
+        border-color: #0EA5E9;
+        box-shadow: 0 0 15px rgba(14, 165, 233, 0.15);
+      }
+      .shape-card.active[data-shape="rectangle"] {
+        background: rgba(236, 72, 153, 0.08);
+        border-color: #EC4899;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.15);
+      }
+      .shape-card.active[data-shape="heart"] {
+        background: rgba(236, 72, 153, 0.08);
+        border-color: #EC4899;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.15);
+      }
+      .shape-card.active[data-shape="hexagon"] {
+        background: rgba(124, 58, 237, 0.08);
+        border-color: #7C3AED;
+        box-shadow: 0 0 15px rgba(124, 58, 237, 0.15);
+      }
+      .shape-card.active[data-shape="star"] {
+        background: rgba(217, 119, 6, 0.08);
+        border-color: #D97706;
+        box-shadow: 0 0 15px rgba(217, 119, 6, 0.15);
+      }
+      
+      .shape-label {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: #1F2937;
+      }
+      .shape-sub {
+        font-size: 10px;
+        color: rgba(0, 0, 0, 0.4);
+      }
+      
+      /* Canvas stage overrides */
+      .preview-canvas svg {
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        background: #ffffff;
+      }
+      
+      /* Thumbnails */
+      .thumb {
+        border: 2px solid transparent;
+        border-radius: 8px;
+        padding: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .thumb.active {
+        border-color: #7C3AED;
+        background: rgba(124, 58, 237, 0.08);
+      }
+      
+      /* Custom Cursor styles */
+      .custom-cursor-dot-wrapper,
+      .custom-cursor-ring-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        z-index: 999999;
+        opacity: 0;
+        transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform;
+      }
+      .custom-cursor-dot {
+        width: 26px;
+        height: 26px;
+        background-image: url('assets/shopship_logo.jpg');
+        background-size: cover;
+        background-position: center;
+        border-radius: 50%;
+        border: 1.2px solid #0EA5E9;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        transform: translate(-50%, -50%) scale(1);
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+      }
+      .custom-cursor-ring {
+        width: 42px;
+        height: 42px;
+        border: 1.2px solid rgba(124, 58, 237, 0.4);
+        border-radius: 50%;
+        transform: translate(-50%, -50%) scale(1);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background-color 0.2s ease;
+      }
+      body.custom-cursor-enabled,
+      body.custom-cursor-enabled * {
+        cursor: none !important;
+      }
+      /* Restore native cursor inside open dialogs — they render in the top layer
+         above the custom cursor's z-index, so the custom cursor is invisible there */
+      dialog[open],
+      dialog[open] * {
+        cursor: auto !important;
+      }
+      dialog[open] button,
+      dialog[open] input,
+      dialog[open] select,
+      dialog[open] textarea,
+      dialog[open] label,
+      dialog[open] [role="button"] {
+        cursor: pointer !important;
+      }
+
+      /* Preview tab active state */
+      .preview-tab { color: #6B7280; }
+      .preview-tab.active { background: #7C3AED; color: #ffffff; }
+      .preview-tab:not(.active):hover { color: #111827; background: rgba(0,0,0,0.04); }
+
+      /* Step done indicator */
+      .step-done .step-status-label {
+        color: #16a34a;
+        font-weight: 700;
+      }
+      .step-done {
+        border-color: rgba(22, 163, 74, 0.3) !important;
+        background: rgba(22, 163, 74, 0.04) !important;
+      }
+
+      /* Filter preset button active state */
+      .filter-preset-btn.active-filter {
+        background: rgba(124, 58, 237, 0.08);
+        border-color: #7C3AED;
+        color: #7C3AED;
+      }
+
+      /* ── Image Queue ── */
+      .image-queue-item {
+        display: flex; align-items: flex-start; gap: 10px; padding: 10px;
+        background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        position: relative;
+      }
+      .image-queue-item:hover { border-color: rgba(124,58,237,0.3); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+      .iq-thumb { flex-shrink: 0; width: 48px; height: 48px; border-radius: 6px; overflow: hidden; background: #F3F4F6; border: 1px solid rgba(0,0,0,0.08); margin-top: 2px; }
+      .iq-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .iq-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+      .iq-name-input { background: transparent; border: none; border-bottom: 1.5px solid transparent; color: #1F2937; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; padding: 1px 0; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .iq-name-input:hover { border-bottom-color: rgba(0,0,0,0.2); }
+      .iq-name-input:focus { outline: none; border-bottom-color: #7C3AED; }
+      .iq-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .iq-qty-label { font-size: 10px; color: #6B7280; font-family: 'Space Grotesk', sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+      .iq-qty-stepper { display: flex; align-items: center; gap: 2px; background: #F3F4F6; border: 1px solid rgba(0,0,0,0.08); border-radius: 6px; padding: 2px 4px; }
+      .iq-qty-btn { width: 20px; height: 20px; border-radius: 4px; border: none; background: transparent; color: #7C3AED; font-weight: 700; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; transition: background 0.15s; }
+      .iq-qty-btn:hover { background: rgba(124,58,237,0.1); }
+      .iq-qty-value { font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: #1F2937; min-width: 20px; text-align: center; }
+      .iq-delete-btn { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.15); color: #EF4444; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.2s, background 0.2s; padding: 0; line-height: 1; }
+      .image-queue-item:hover .iq-delete-btn { opacity: 1; }
+      .iq-delete-btn:hover { background: #EF4444; color: #fff; border-color: #EF4444; }
+      .iq-shape-chips { display: flex; gap: 3px; flex-wrap: nowrap; margin: 1px 0; }
+      .iq-shape-chip { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 3px 2px; border-radius: 20px; border: 1.5px solid rgba(0,0,0,0.12); background: #fff; color: #6B7280; font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
+      .iq-chip-icon { display: flex; align-items: center; opacity: 0.7; }
+      .iq-chip-icon svg { width: 11px !important; height: 11px !important; }
+      .iq-chip-label { display: none; }
+      .iq-shape-chip:hover { border-color: #7C3AED; color: #7C3AED; background: rgba(124,58,237,0.08); }
+      .iq-shape-chip.active { background: #7C3AED; color: #fff; border-color: #7C3AED; }
+      .iq-shape-chip.active .iq-chip-icon { opacity: 1; }
+
+
+      /* Dashboard Premium Cards style */
+      .doc-card {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 16px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+        position: relative;
+      }
+      .doc-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
+        border-color: rgba(124, 58, 237, 0.2);
+      }
+      .doc-thumbnail {
+        aspect-ratio: 16/10;
+        position: relative;
+        background: #F3F4F6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      }
+      .doc-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .doc-delete-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.9);
+        color: white;
+        border: none;
+        font-size: 14px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .doc-card:hover .doc-delete-btn {
+        opacity: 1;
+      }
+      .doc-shape-badge {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        background: rgba(79, 70, 229, 0.85);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 7px;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        z-index: 10;
+      }
+      .doc-info {
+        padding: 12px;
+      }
+      .doc-title-input {
+        width: 100%;
+        border: none;
+        background: transparent;
+        padding: 0;
+        font-weight: 600;
+        font-size: 13px;
+        color: #1F2937;
+        outline: none;
+      }
+      .doc-title-input:focus {
+        border-bottom: 1.5px solid #7C3AED;
+      }
+      .doc-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: #9CA3AF;
+        margin-top: 4px;
+      }
+
+      /* ── License badge ───────────────────────────────── */
+      .license-badge {
+        font-size: 10px; font-weight: 700; padding: 3px 9px;
+        border-radius: 99px; letter-spacing: 0.03em;
+        border: 1.5px solid; white-space: nowrap;
+      }
+      .license-badge.demo        { background: #FFF7ED; color: #B45309; border-color: #FCD34D; }
+      .license-badge.demo.locked { background: #FEF2F2; color: #B91C1C; border-color: #FCA5A5; }
+      .license-badge.licensed    { background: #F0FDF4; color: #15803D; border-color: #86EFAC; }
+
+      /* ── Activation modal ────────────────────────────── */
+      .activation-modal-dialog {
+        border: none; border-radius: 20px; padding: 0;
+        background: #fff; max-width: 440px; width: 92vw;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08);
+      }
+      .activation-modal-dialog::backdrop {
+        background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+      }
+      .activation-modal-inner { padding: 28px; }
+      .activation-modal-header {
+        display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px;
+      }
+      .activation-modal-icon { font-size: 32px; flex-shrink: 0; line-height: 1; }
+      .activation-modal-title {
+        font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px;
+        font-weight: 800; color: #111; margin: 0 0 3px; letter-spacing: -0.3px;
+      }
+      .activation-modal-subtitle { font-size: 12px; color: #6B7280; margin: 0; }
+      .activation-modal-close {
+        margin-left: auto; flex-shrink: 0; width: 28px; height: 28px;
+        border-radius: 50%; background: #F3F4F6; color: #6B7280;
+        font-size: 12px; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; border: none; transition: background 0.15s;
+      }
+      .activation-modal-close:hover { background: #E5E7EB; color: #111; }
+      .activation-modal-limitmsg {
+        font-size: 12px; color: #B45309; background: #FFF7ED;
+        border: 1px solid #FCD34D; border-radius: 8px; padding: 10px 14px;
+        margin: 0 0 16px; display: none;
+      }
+      .activation-modal-limitmsg:not(:empty) { display: block; }
+      .activation-demo-info {
+        display: flex; align-items: flex-start; gap: 8px; background: #F0F9FF;
+        border: 1px solid #BAE6FD; border-radius: 10px; padding: 10px 14px;
+        font-size: 12px; color: #0369A1; margin-bottom: 20px;
+      }
+      .activation-demo-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+      .activation-label {
+        display: block; font-size: 11px; font-weight: 700; color: #374151;
+        margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;
+      }
+      .activation-input {
+        width: 100%; padding: 11px 14px; border: 1.5px solid #D1D5DB;
+        border-radius: 10px; font-size: 14px; font-family: 'Space Mono', monospace;
+        font-weight: 700; letter-spacing: 0.08em; color: #111; outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        text-transform: uppercase; box-sizing: border-box;
+      }
+      .activation-input:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+      .activation-error {
+        font-size: 11px; color: #DC2626; margin: 6px 0 0; min-height: 16px; font-weight: 600;
+      }
+      .activation-submit-btn {
+        width: 100%; margin-top: 16px; padding: 13px;
+        background: #7C3AED; color: #fff; border: none; border-radius: 12px;
+        font-size: 14px; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif;
+        cursor: pointer; transition: background 0.15s, transform 0.1s;
+        box-shadow: 0 4px 16px rgba(124,58,237,0.3);
+      }
+      .activation-submit-btn:hover { background: #6D28D9; }
+      .activation-submit-btn:disabled { background: #9CA3AF; cursor: not-allowed; box-shadow: none; }
+      .activation-footer-note {
+        font-size: 10px; color: #9CA3AF; text-align: center; margin: 14px 0 0;
+      }
+    </style>
+  </head>
+  <body class="bg-background text-gray-900 font-body overflow-x-hidden min-h-screen">
+    
+    <!-- Dashboard View Container -->
+    <div id="dashboard-view" class="min-h-screen p-8 bg-surface-dim">
+      <div class="max-w-6xl mx-auto space-y-10">
+        <!-- Hero section -->
+        <div class="flex justify-between items-center py-6 border-b border-outline">
+          <div class="flex items-center gap-3">
+            <img class="brand-logo" src="assets/shopship_logo.jpg" alt="ShopShip Logo" style="width: 50px; height: 50px; border-radius: 10px; object-fit: cover;" />
+            <div>
+              <h1 class="font-title text-2xl font-bold tracking-tight text-gray-900">PrintBot Dashboard</h1>
+              <p class="text-xs text-gray-500 uppercase tracking-wider font-bold">Premium Layout Workspace</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <!-- Instagram button -->
+            <a href="https://www.instagram.com/its.shopship/" target="_blank" rel="noopener noreferrer"
+              class="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs text-white transition-all hover:scale-105 hover:shadow-lg active:scale-95"
+              style="background: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+              </svg>
+              Follow us
+            </a>
+            <button class="px-4 py-2 border border-outline hover:bg-black/5 rounded-lg text-xs font-bold transition-all" id="btn-dashboard-help">Help &amp; Docs</button>
+          </div>
+        </div>
+
+        <!-- License Status Card - Premium Design -->
+        <div class="relative overflow-hidden rounded-3xl transition-all duration-300" id="license-status-card" style="border: 2px solid rgba(245, 158, 11, 0.3); background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(251, 191, 36, 0.04) 100%); box-shadow: 0 8px 32px rgba(245, 158, 11, 0.1);">
+          <!-- Animated background accent -->
+          <div style="position: absolute; top: -50%; right: -50%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
+
+          <div class="relative p-8 flex items-center justify-between">
+            <!-- Left side: Status info -->
+            <div class="flex items-center gap-6 flex-1">
+              <!-- License icon -->
+              <div style="width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3); flex-shrink: 0;">
+                <span style="font-size: 32px;">🔐</span>
+              </div>
+
+              <!-- Status text -->
+              <div>
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">License Status</p>
+                <p id="license-status-text" class="font-title font-bold text-2xl text-amber-600">Demo · 5 files left</p>
+                <p class="text-xs text-gray-500 mt-2">Upgrade to unlock unlimited designs</p>
+
+                <!-- License info (hidden when demo) -->
+                <div id="license-info-section" style="display: none; margin-top: 12px;">
+                  <div class="flex gap-6">
+                    <div>
+                      <p class="text-xs text-gray-500 uppercase font-bold">Active Key</p>
+                      <p id="license-key-value" class="font-mono text-sm font-bold text-green-600">PBOT-XXXX-XXXX-XXXX-XXXX</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 uppercase font-bold">Device</p>
+                      <p id="license-device-value" class="font-mono text-xs text-gray-600" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">—</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right side: CTA Button -->
+            <button class="px-7 py-4 rounded-xl font-bold text-sm transition-all duration-300 transform hover:scale-105 hover:shadow-xl active:scale-95 flex items-center gap-2 ml-4 flex-shrink-0" id="btn-activate-dashboard" style="background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%); color: white; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);">
+              <span style="font-size: 18px;">✨</span>
+              <span>Activate</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Presets / New Design Grid -->
+        <div class="space-y-4">
+          <h2 class="font-title text-lg font-bold text-gray-900">Start a New Design</h2>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-primary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="circle">
+              <span class="material-symbols-outlined text-4xl text-primary" data-icon="circle">circle</span>
+              <div>
+                <h3 class="font-bold text-sm text-gray-900">Circle</h3>
+                <p class="text-[10px] text-gray-500 mt-1">58 mm · 9/page</p>
+              </div>
+            </button>
+            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-secondary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="square">
+              <span class="material-symbols-outlined text-4xl text-secondary" data-icon="square">square</span>
+              <div>
+                <h3 class="font-bold text-sm text-gray-900">Square</h3>
+                <p class="text-[10px] text-gray-500 mt-1">50 mm · 12/page</p>
+              </div>
+            </button>
+            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-accent-3/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="rectangle">
+              <span class="material-symbols-outlined text-4xl text-accent-3" data-icon="rectangle">rectangle</span>
+              <div>
+                <h3 class="font-bold text-sm text-gray-900">Rectangle</h3>
+                <p class="text-[10px] text-gray-500 mt-1">90x65 mm · 4/page</p>
+              </div>
+            </button>
+            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-accent-3/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="heart">
+              <span class="material-symbols-outlined text-4xl text-accent-3" data-icon="favorite">favorite</span>
+              <div>
+                <h3 class="font-bold text-sm text-gray-900">Heart</h3>
+                <p class="text-[10px] text-gray-500 mt-1">60 mm · 12/page</p>
+              </div>
+            </button>
+            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-primary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="hexagon">
+              <span class="material-symbols-outlined text-4xl text-primary" data-icon="hexagon">hexagon</span>
+              <div>
+                <h3 class="font-bold text-sm text-gray-900">Hexagon</h3>
+                <p class="text-[10px] text-gray-500 mt-1">60 mm · 12/page</p>
+              </div>
+            </button>
+            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-accent-2/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="star">
+              <span class="material-symbols-outlined text-4xl text-accent-2" data-icon="grade">grade</span>
+              <div>
+                <h3 class="font-bold text-sm text-gray-900">Star</h3>
+                <p class="text-[10px] text-gray-500 mt-1">60 mm · 12/page</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Recent Designs Section -->
+        <div class="space-y-4 pb-16">
+          <h2 class="font-title text-lg font-bold text-gray-900">Recent Designs</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="recent-designs-grid">
+            <!-- Dynamically populated by app.js -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor View Wrapper -->
+    <div id="editor-view" class="w-full flex h-screen" style="display:none">
+      <!-- Sidebar Controls Panel -->
+      <aside class="fixed left-0 top-0 h-screen w-full md:w-panel-width bg-surface-container-low backdrop-blur-xl border-r border-outline shadow-xl flex flex-col z-30">
+        <!-- Sidebar Header -->
+        <div class="p-6 border-b border-outline flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <button class="material-symbols-outlined p-2 hover:bg-black/5 rounded-lg text-gray-400 hover:text-gray-900 transition-colors" id="btn-back-sidebar" title="Back to Dashboard">arrow_back</button>
+            <img class="brand-logo" src="assets/shopship_logo.jpg" alt="ShopShip Logo" style="width: 44px; height: 44px; border-radius: 10px; object-fit: cover;" />
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-title text-lg font-bold tracking-tight text-gray-900">PrintBot</span>
+              </div>
+              <p class="text-[10px] text-gray-500 tracking-wider uppercase font-bold">Studio Pro Layout</p>
+            </div>
+          </div>
+          <button class="material-symbols-outlined p-2 hover:bg-black/5 rounded-lg text-gray-400 hover:text-gray-900 transition-colors" id="btn-help">help</button>
+        </div>
+
+        <!-- Steps Panel Content -->
+        <div class="flex-1 overflow-y-auto p-5 space-y-4 scroll-hide">
+          <!-- Step 1: Pick a shape -->
+          <div class="step-card bg-gray-50 border border-outline p-4 rounded-xl space-y-3 opacity-100" id="card-step-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold font-mono tracking-widest text-primary">STEP 01</span>
+              <span class="text-xs text-gray-500 step-status-label">Pick a Template</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2" id="shape-grid">
+              <!-- Dynamically populated shape options -->
+            </div>
+          </div>
+
+          <!-- Step 2: Add Images -->
+          <div class="step-card bg-gray-50 border border-outline p-4 rounded-xl space-y-4" id="card-step-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold font-mono tracking-widest text-primary">STEP 02</span>
+              <span class="text-xs text-gray-500 step-status-label">Upload Images</span>
+            </div>
+            
+            <label class="border-2 border-dashed border-gray-300 hover:border-primary/50 hover:bg-primary/5 rounded-xl p-6 text-center cursor-pointer block transition-all group" id="dropzone-label" for="file-input">
+              <input id="file-input" type="file" multiple accept="image/*" class="hidden" />
+              <span class="material-symbols-outlined text-3xl text-gray-400 group-hover:text-primary mb-2 block transition-colors">cloud_upload</span>
+              <p class="text-xs font-bold mb-1 text-gray-700">Drag images or Browse</p>
+              <p class="text-[9px] text-gray-400">JPG, PNG, WEBP supported</p>
+            </label>
+
+            <div class="flex gap-4 justify-between pt-2 border-t border-outline">
+              <div class="text-center flex-1">
+                <span class="text-[10px] text-gray-500 block uppercase">Selected</span>
+                <span class="text-lg font-bold text-gray-900" id="stat-count">0</span>
+              </div>
+              <div class="w-[1px] bg-outline"></div>
+              <div class="text-center flex-1">
+                <span class="text-[10px] text-gray-500 block uppercase">Total Pages</span>
+                <span class="text-lg font-bold text-gray-900" id="stat-pages">0</span>
+              </div>
+            </div>
+
+            <!-- Uploaded images queue -->
+            <div class="space-y-2" id="image-queue-wrapper" style="display: none;">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-gray-500">Uploaded Queue</span>
+                <button class="text-[10px] text-red-500 hover:text-red-600 font-bold" id="btn-clear-all">Clear All</button>
+              </div>
+              <div class="flex flex-col gap-2 max-h-[320px] overflow-y-auto pr-1" id="image-queue-list">
+                <!-- Thumbnails list -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Export -->
+          <div class="step-card bg-gray-50 border border-outline p-4 rounded-xl space-y-4" id="card-step-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold font-mono tracking-widest text-primary">STEP 03</span>
+              <span class="text-xs text-gray-500 step-status-label">Export Options</span>
+            </div>
+            <div class="space-y-2">
+              <button class="w-full py-2.5 bg-primary text-white font-bold rounded-lg shimmer-btn transition-all active:scale-95 text-xs shadow-lg shadow-primary/20" id="btn-download">Download PNGs</button>
+              <button class="w-full py-2.5 border border-gray-300 hover:bg-black/5 text-gray-700 hover:text-gray-900 font-bold rounded-lg transition-all text-xs" id="btn-print">Print Layout</button>
+            </div>
+            <div class="text-[10px] text-center text-gray-500 bg-gray-100 py-1.5 rounded-lg border border-outline" id="status-text">Ready.</div>
+          </div>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="p-4 border-t border-outline bg-gray-100/50 flex flex-col items-center gap-1.5 text-[11px] text-gray-500">
+          <div>Built by <span class="font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent-3">ShopShip</span></div>
+          <a href="https://www.instagram.com/its.shopship/" target="_blank" class="text-secondary hover:text-primary transition-colors flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+            Follow us on Instagram
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Workspace Stage -->
+      <main class="hidden md:flex ml-0 md:ml-panel-width flex-1 flex-col bg-surface-dim overflow-hidden">
+        <!-- Header / Top Bar Controls -->
+        <header class="flex justify-between items-center h-16 px-8 bg-surface-container-low/80 backdrop-blur-md border-b border-outline sticky top-0 z-20">
+          <div class="flex items-center gap-4">
+            <!-- Back button shows clean for dashboard navigation -->
+            <button class="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 font-bold border border-outline hover:bg-black/5 px-3 py-1.5 rounded-lg transition-all" id="btn-back-dashboard">
+              <span class="material-symbols-outlined text-sm">arrow_back</span> Dashboard
+            </button>
+            <div class="h-4 w-[1px] bg-outline" id="btn-back-separator"></div>
+            <!-- Logo + title -->
+            <div class="flex items-center gap-2">
+              <img src="assets/shopship_logo.jpg" alt="ShopShip" style="width:24px; height:24px; border-radius:6px; object-fit:cover; flex-shrink:0;" />
+              <span class="font-title font-bold text-sm tracking-tight text-gray-700">Layout Canvas</span>
+            </div>
+          </div>
+
+          <!-- License badge + activate button -->
+          <div class="flex items-center gap-2">
+            <span id="license-badge" class="license-badge demo">Demo · 5 files left</span>
+            <button id="btn-activate" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-all shadow-sm">Activate</button>
+          </div>
+
+          <!-- Zoom & Action Controls (shown dynamically) -->
+          <div class="flex items-center gap-4" id="preview-header-actions" style="display: none;">
+            <!-- Page count chip -->
+            <span class="text-xs text-gray-500 font-bold bg-white border border-outline px-3 py-1 rounded-full" id="page-counter">1 page</span>
+
+            <!-- Zoom -->
+            <div class="flex items-center bg-white border border-outline rounded-lg p-0.5" id="zoom-control">
+              <button class="w-7 h-7 flex items-center justify-center hover:bg-black/5 rounded text-gray-500 hover:text-gray-900 font-bold" id="btn-zoom-out">−</button>
+              <span class="px-2 text-xs font-mono font-bold text-gray-700" id="zoom-label">100%</span>
+              <button class="w-7 h-7 flex items-center justify-center hover:bg-black/5 rounded text-gray-500 hover:text-gray-900 font-bold" id="btn-zoom-in">+</button>
+            </div>
+
+            <button class="px-4 py-1.5 rounded-lg bg-primary text-white font-bold text-xs shimmer-btn shadow-md active:scale-95" id="btn-generate">Regenerate</button>
+          </div>
+        </header>
+
+        <!-- Main Stages Area -->
+        <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <!-- Tab Switches -->
+          <div class="flex gap-1.5 bg-white border-b border-outline px-4 py-2 w-full">
+            <button class="preview-tab px-4 py-2 text-xs font-bold rounded-lg transition-all active" id="tab-a4">A4 Sheet Layout</button>
+            <button class="preview-tab px-4 py-2 text-xs font-bold rounded-lg transition-all" id="tab-crop">Interactive Crop Editor</button>
+          </div>
+
+          <div class="flex-1 flex flex-col relative overflow-hidden" id="preview-stage" style="min-height:0">
+            <!-- Empty State -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center" id="empty-state" style="display:none">
+              <div class="max-w-sm glass-panel p-8 rounded-3xl">
+                <div class="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10 text-primary mb-4 mx-auto">
+                  <span class="material-symbols-outlined text-3xl">auto_awesome_motion</span>
+                </div>
+                <h3 class="font-title font-bold text-lg mb-2 text-gray-900">No layout generated</h3>
+                <p class="text-xs text-gray-500 mb-6">Pick your target shape preset and add your batch images in the sidebar to build your workspace.</p>
+                <label for="file-input" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 border border-outline rounded-lg text-xs font-bold cursor-pointer transition-all">Upload Images</label>
+              </div>
+            </div>
+
+            <!-- A4 Layout Stage -->
+            <div class="w-full flex flex-col" id="stage-a4" style="height:100%; min-height:0">
+              <div class="flex-1 overflow-y-auto overflow-x-hidden w-full flex flex-col items-center"
+                id="preview-scroll-area"
+                style="
+                  scroll-behavior:smooth;
+                  padding: 16px;
+                  background-color: #f3f4f6;
+                  scrollbar-width: thin;
+                  scrollbar-color: rgba(0,0,0,0.15) transparent;
+                ">
+                <!-- Pages rendered here vertically by JS -->
+                <div id="preview-canvas" style="display:flex; flex-direction:column; align-items:center; gap:24px; width:100%;"></div>
+              </div>
+            </div>
+
+            <!-- Crop Editor Stage -->
+            <div class="w-full h-full flex flex-col min-h-0 hidden overflow-y-auto" id="stage-crop">
+              <div class="flex-1 grid grid-cols-12 gap-4 min-h-0 p-4">
+                <!-- Drag Area Workspace (Left 8 Cols) -->
+                <div class="col-span-12 lg:col-span-8 flex justify-center items-center bg-gray-100 border border-outline rounded-3xl p-6 relative overflow-hidden" id="crop-canvas-wrapper">
+                  <div class="relative overflow-hidden cursor-grab active:cursor-grabbing select-none" id="crop-interactive-area" style="width: 360px; height: 360px;">
+                    <img id="crop-preview-img" src="" alt="Crop Preview" class="absolute max-w-none max-h-none pointer-events-none select-none" style="display: none;" />
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" id="crop-guidelines" xmlns="http://www.w3.org/2000/svg"></svg>
+                  </div>
+                </div>
+
+                <!-- Crop Controls (Right 4 Cols) -->
+                <div class="col-span-12 lg:col-span-4 bg-white border border-outline rounded-3xl flex flex-col shadow-sm min-h-0 overflow-hidden">
+                  <!-- Scrollable content area -->
+                  <div class="flex-1 overflow-y-auto p-6 space-y-5 min-h-0" style="scrollbar-width:thin; scrollbar-color:rgba(0,0,0,0.12) transparent;">
+                    <h4 class="font-title font-bold text-sm text-gray-800">Crop & Alignment</h4>
+                    
+                    <!-- Zoom Slider -->
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Zoom Scale</span>
+                        <span class="font-mono font-bold text-primary" id="val-zoom">1.00x</span>
+                      </div>
+                      <input type="range" id="slider-zoom" min="1.0" max="3.0" step="0.01" value="1.0" class="w-full accent-primary bg-gray-200 h-1.5 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <!-- Pan X Slider -->
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Offset X</span>
+                        <span class="font-mono font-bold text-secondary" id="val-x">0px</span>
+                      </div>
+                      <input type="range" id="slider-x" min="-500" max="500" step="1" value="0" class="w-full accent-secondary bg-gray-200 h-1.5 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <!-- Pan Y Slider -->
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Offset Y</span>
+                        <span class="font-mono font-bold text-secondary" id="val-y">0px</span>
+                      </div>
+                      <input type="range" id="slider-y" min="-500" max="500" step="1" value="0" class="w-full accent-secondary bg-gray-200 h-1.5 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <!-- Filter Presets -->
+                    <div class="space-y-2 pt-3 border-t border-outline">
+                      <span class="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">Filter Preset</span>
+                      <div class="flex flex-wrap gap-1.5" id="filter-presets-row">
+                        <button class="filter-preset-btn px-2 py-1 rounded-full text-[10px] font-bold border border-gray-300 hover:border-primary hover:text-primary transition-all active-filter" data-preset="original">Original</button>
+                        <button class="filter-preset-btn px-2 py-1 rounded-full text-[10px] font-bold border border-gray-300 hover:border-primary hover:text-primary transition-all" data-preset="vivid">Vivid</button>
+                        <button class="filter-preset-btn px-2 py-1 rounded-full text-[10px] font-bold border border-gray-300 hover:border-primary hover:text-primary transition-all" data-preset="bw">B&W</button>
+                        <button class="filter-preset-btn px-2 py-1 rounded-full text-[10px] font-bold border border-gray-300 hover:border-primary hover:text-primary transition-all" data-preset="vintage">Vintage</button>
+                        <button class="filter-preset-btn px-2 py-1 rounded-full text-[10px] font-bold border border-gray-300 hover:border-primary hover:text-primary transition-all" data-preset="soft">Soft</button>
+                        <button class="filter-preset-btn px-2 py-1 rounded-full text-[10px] font-bold border border-gray-300 hover:border-primary hover:text-primary transition-all" data-preset="moody">Moody</button>
+                      </div>
+                    </div>
+
+                    <!-- Brightness Slider -->
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Brightness</span>
+                        <span class="font-mono font-bold text-gray-700" id="val-brightness">1.00</span>
+                      </div>
+                      <input type="range" id="slider-brightness" min="0.5" max="2.0" step="0.01" value="1.0" class="w-full accent-primary bg-gray-200 h-1.5 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <!-- Contrast Slider -->
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Contrast</span>
+                        <span class="font-mono font-bold text-gray-700" id="val-contrast">1.00</span>
+                      </div>
+                      <input type="range" id="slider-contrast" min="0.5" max="2.0" step="0.01" value="1.0" class="w-full accent-primary bg-gray-200 h-1.5 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <!-- Saturation Slider -->
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Saturation</span>
+                        <span class="font-mono font-bold text-gray-700" id="val-saturation">1.00</span>
+                      </div>
+                      <input type="range" id="slider-saturation" min="0" max="3.0" step="0.01" value="1.0" class="w-full accent-primary bg-gray-200 h-1.5 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+                  </div>
+
+                  <!-- Action buttons — always pinned to bottom -->
+                  <div class="flex-shrink-0 space-y-2 p-4 pt-3 border-t border-outline bg-white">
+                    <div class="grid grid-cols-2 gap-2">
+                      <button class="py-2 hover:bg-gray-100 text-gray-700 font-bold rounded-lg border border-gray-300 text-xs transition-colors" id="btn-crop-reset">Reset</button>
+                      <button class="py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-lg text-xs transition-colors" id="btn-crop-fit">Auto-Fit</button>
+                    </div>
+                    <button class="w-full py-2.5 bg-primary text-white font-bold rounded-lg text-xs transition-all active:scale-95" id="btn-crop-apply-all">Apply settings to All</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Crop Queue Section -->
+              <div class="mt-6 pt-4 border-t border-outline">
+                <span class="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-2 block">Crop Batch Queue (Select to edit)</span>
+                <div class="flex gap-2 overflow-x-auto py-2 scroll-hide" id="crop-queue-grid">
+                  <!-- Queue thumbnails populated by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Dialogs -->
+    <dialog class="rounded-2xl glass-panel p-6 shadow-2xl text-gray-900 outline-none" id="custom-size-dialog">
+      <div class="max-w-[360px] space-y-4">
+        <h3 class="font-title font-bold text-lg">Create Custom Size</h3>
+        <p class="text-xs text-gray-500">Specify custom dimensions to create a custom magnet template.</p>
+        
+        <div class="space-y-1">
+          <label class="text-[10px] uppercase text-gray-400 font-bold block" for="custom-type">Shape Type</label>
+          <select id="custom-type" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-900 outline-none">
+            <option value="circle">Circle</option>
+            <option value="rect">Rectangle / Square</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-[10px] uppercase text-gray-400 font-bold block" id="lbl-inner-w" for="custom-inner-w">Inner Size (cm)</label>
+            <input type="number" id="custom-inner-w" value="6.0" step="0.1" min="1" max="21" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs outline-none" />
+          </div>
+          <div class="space-y-1" id="grp-inner-h">
+            <label class="text-[10px] uppercase text-gray-400 font-bold block" for="custom-inner-h">Inner Height (cm)</label>
+            <input type="number" id="custom-inner-h" value="6.0" step="0.1" min="1" max="29" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-[10px] uppercase text-gray-400 font-bold block" id="lbl-outer-w" for="custom-outer-w">Outer Size (cm)</label>
+            <input type="number" id="custom-outer-w" value="6.9" step="0.1" min="1" max="21" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs outline-none" />
+          </div>
+          <div class="space-y-1" id="grp-outer-h">
+            <label class="text-[10px] uppercase text-gray-400 font-bold block" for="custom-outer-h">Outer Height (cm)</label>
+            <input type="number" id="custom-outer-h" value="6.9" step="0.1" min="1" max="29" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1" id="grp-radius">
+            <label class="text-[10px] uppercase text-gray-400 font-bold block" for="custom-radius">Radius (mm)</label>
+            <input type="number" id="custom-radius" value="6" step="1" min="0" max="50" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs outline-none" />
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] uppercase text-gray-400 font-bold block" for="custom-margin">Margin (mm)</label>
+            <input type="number" id="custom-margin" value="15" step="1" min="0" max="80" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs outline-none" />
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="custom-show-boundary" checked class="w-4 h-4 accent-primary cursor-pointer" />
+          <label for="custom-show-boundary" class="text-[11px] text-gray-500 cursor-pointer select-none">Show boundary lines on print sheet</label>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button class="flex-1 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 text-xs font-bold" id="btn-close-custom-size">Cancel</button>
+          <button class="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-bold shimmer-btn" id="btn-create-custom-size">Create & Select</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- License dialog removed -->
+
+    <dialog class="rounded-2xl glass-panel p-6 shadow-2xl text-gray-900 outline-none" id="help-dialog">
+      <div class="max-w-[300px] space-y-4">
+        <h3 class="font-title font-bold text-lg">How it works</h3>
+        <ul class="space-y-2 text-xs text-gray-600 list-disc list-inside">
+          <li>Select a shape preset in the sidebar or dashboard.</li>
+          <li>Upload your batch of creative images.</li>
+          <li>Arrange crops inside the Interactive Crop Editor tab.</li>
+          <li>Click Download or Print to export!</li>
+        </ul>
+        <button class="w-full py-2 bg-primary text-white font-bold rounded-lg text-xs" id="btn-close-help">Got it</button>
+      </div>
+    </dialog>
+
+    <!-- Custom Mascot Cursor Elements -->
+    <div class="custom-cursor-dot-wrapper" id="cursor-dot-wrapper">
+      <div class="custom-cursor-dot" id="cursor-dot"></div>
+    </div>
+    <div class="custom-cursor-ring-wrapper" id="cursor-ring-wrapper">
+      <div class="custom-cursor-ring" id="cursor-ring"></div>
+    </div>
+
+    <!-- ── Activation Modal ──────────────────────────────── -->
+    <dialog id="activation-modal" class="activation-modal-dialog">
+      <div class="activation-modal-inner">
+        <!-- Header -->
+        <div class="activation-modal-header">
+          <div class="activation-modal-icon">🔐</div>
+          <div>
+            <h2 class="activation-modal-title">Activate PrintBot</h2>
+            <p class="activation-modal-subtitle">Enter your license key to unlock unlimited usage</p>
+          </div>
+          <button id="btn-close-activation" class="activation-modal-close" aria-label="Close">✕</button>
+        </div>
+
+        <!-- Message (shown when demo limit hit) -->
+        <p id="activation-msg" class="activation-modal-limitmsg"></p>
+
+        <!-- Demo info -->
+        <div class="activation-demo-info" id="demo-info-block">
+          <span class="activation-demo-icon">⚡</span>
+          <span>Free demo: <strong>5 images</strong> maximum. Activate for <strong>unlimited</strong> images, all shapes, and full export.</span>
+        </div>
+
+        <!-- Key input form -->
+        <form id="activation-form" autocomplete="off">
+          <label class="activation-label">License Key</label>
+          <input
+            id="license-key-input"
+            type="text"
+            class="activation-input"
+            placeholder="PBOT-XXXX-XXXX-XXXX-XXXX"
+            maxlength="24"
+            spellcheck="false"
+            autocomplete="off"
+          />
+          <p id="activation-error" class="activation-error"></p>
+          <button type="submit" id="btn-submit-activation" class="activation-submit-btn">Activate License</button>
+        </form>
+
+        <p class="activation-footer-note">Key is tied to this device. One key = one device, lifetime access.</p>
+      </div>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -21,7 +21,7 @@ app.use((req, res, next) => {
   if (req.method === "OPTIONS") res.sendStatus(200);
   else next();
 });
-app.use(express.static(path.join(__dirname)));   // serve index.html, app.js, etc.
+app.use(express.static(path.join(__dirname, "public")));   // serve index.html, app.js, etc.
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const SECRET     = process.env.PB_SECRET || "pb-shopship-2024-change-in-prod-XzK9m";

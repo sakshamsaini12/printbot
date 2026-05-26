@@ -4,6 +4,7 @@
   "description": "PrintBot - Premium Layout Workspace for ShopShip",
   "main": "server.js",
   "scripts": {
+    "build": "mkdir -p public && cp *.html *.js public/ 2>/dev/null || true",
     "start": "node server.js",
     "dev": "node server.js"
   },
