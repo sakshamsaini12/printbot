@@ -88,7 +88,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: auto; }
 
 body {
   margin: 0;
@@ -100,9 +100,7 @@ body {
   scrollbar-gutter: stable;
   font-size: 14px;
   line-height: 1.5;
-  /* GPU compositing layer for smoother animations */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  /* No full-page GPU layer — wastes VRAM and causes repaint cascade */
 }
 
 /* ─────────────────────────────────────────────
@@ -193,7 +191,6 @@ button {
     color var(--t-fast) ease,
     border-color var(--t-fast) ease,
     opacity var(--t-fast) ease;
-  will-change: transform;
   white-space: nowrap;
 }
 
@@ -332,7 +329,6 @@ button:active { transform: scale(0.96) translateY(0); transition-duration: 0.05s
     transform var(--t-mid) var(--ease),
     border-color var(--t-mid) var(--ease),
     box-shadow var(--t-mid) var(--ease);
-  will-change: transform;
 }
 
 .preset-card:hover {
@@ -720,7 +716,6 @@ button:active { transform: scale(0.96) translateY(0); transition-duration: 0.05s
   gap: 8px;
   text-align: left;
   color: var(--text);
-  will-change: transform;
   width: 100%;
   min-width: 0;
   overflow: hidden;
@@ -2087,8 +2082,12 @@ header { animation: fadeDown 0.30s 0.06s cubic-bezier(0.16,1,0.3,1) both; }
     transparent 65%
   );
   background-size: 200% 100%;
-  animation: shimmerSlide 2.4s cubic-bezier(0.4,0,0.6,1) infinite;
+  /* Only animate on hover — stops 60fps paint when idle */
+  animation: none;
   pointer-events: none;
+}
+.shimmer-btn:hover::after {
+  animation: shimmerSlide 1.8s cubic-bezier(0.4,0,0.6,1) infinite;
 }
 .shimmer-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,58,237,0.35); }
 .shimmer-btn:active { transform: scale(0.97); }
@@ -2141,8 +2140,8 @@ header { animation: fadeDown 0.30s 0.06s cubic-bezier(0.16,1,0.3,1) both; }
   transform: translateY(3px);
 }
 
-/* ── Empty state float ── */
-#empty-state .material-symbols-outlined {
+/* ── Empty state float — only when visible ── */
+#empty-state:not([style*="display: none"]):not([style*="display:none"]) .material-symbols-outlined {
   animation: float 3s ease-in-out infinite;
 }
 
@@ -2417,16 +2416,9 @@ dialog::backdrop { animation: fadeIn 0.22s ease both; }
   perspective: 1000px;
 }
 
-/* Interactive elements: GPU acceleration for hover/drag states */
-.shape-card,
-.crop-interactive-area,
-.doc-thumbnail,
-.doc-card,
-button,
-input[type="range"],
-[role="button"] {
-  transform: translateZ(0);
-  backface-visibility: hidden;
+/* Only promote compositing layer on the crop image and cursor — not everything */
+.crop-interactive-area {
+  contain: layout style;
 }
 
 /* Smooth cursor animations */

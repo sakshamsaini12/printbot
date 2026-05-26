@@ -776,16 +776,7 @@ function renderPreview() {
     const delay = (index * 0.09).toFixed(2);
     pagesHtml += `
       <div class="page-enter" style="animation-delay:${delay}s;" data-page="${index}">
-        <div style="
-          width:${pageW}px;
-          height:${pageH}px;
-          background:#fff;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 6px 24px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.07);
-          border-radius:3px;
-          overflow:hidden;
-          flex-shrink:0;
-          transition: box-shadow 0.3s ease;
-        " onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12),0 12px 40px rgba(0,0,0,0.14)'" onmouseleave="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.08),0 6px 24px rgba(0,0,0,0.10),0 2px 8px rgba(0,0,0,0.07)'">
+        <div class="canva-page-sheet" style="width:${pageW}px;height:${pageH}px;overflow:hidden;flex-shrink:0;">
           ${svg}
         </div>
       </div>

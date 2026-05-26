@@ -223,6 +223,23 @@
         /* Prevent horizontal overflow */
         body { overflow-x: hidden; }
         #editor-view { overflow-x: hidden; }
+
+        /* ── Mobile perf: kill all backdrop-filter — biggest scroll jitter source ── */
+        aside, header, .glass-panel, dialog::backdrop,
+        .doc-delete-btn, .doc-shape-badge {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+
+        /* Isolate scroll area repaints */
+        #preview-scroll-area {
+          contain: paint style;
+        }
+
+        /* Remove scale from page-enter on mobile — scale forces composite per frame */
+        .page-enter {
+          animation: fadeIn 0.25s ease both !important;
+        }
       }
 
       /* Step done indicator */
@@ -581,7 +598,7 @@
     <!-- Editor View Wrapper -->
     <div id="editor-view" class="w-full flex h-screen" style="display:none">
       <!-- Sidebar Controls Panel -->
-      <aside class="fixed left-0 top-0 h-screen w-full md:w-panel-width bg-surface-container-low backdrop-blur-xl border-r border-outline shadow-xl flex flex-col z-30">
+      <aside class="fixed left-0 top-0 h-screen w-full md:w-panel-width bg-white border-r border-outline shadow-xl flex flex-col z-30">
         <!-- Sidebar Header -->
         <div class="p-6 border-b border-outline flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -687,7 +704,7 @@
       <!-- Main Workspace Stage -->
       <main id="editor-main" class="hidden md:flex ml-0 md:ml-panel-width flex-1 flex-col bg-surface-dim overflow-hidden">
         <!-- Header / Top Bar Controls -->
-        <header class="flex justify-between items-center h-14 sm:h-16 px-4 sm:px-8 bg-surface-container-low/80 backdrop-blur-md border-b border-outline sticky top-0 z-20">
+        <header class="flex justify-between items-center h-14 sm:h-16 px-4 sm:px-8 bg-white border-b border-outline sticky top-0 z-20">
           <div class="flex items-center gap-2 sm:gap-4">
             <!-- Mobile: back to edit -->
             <button id="btn-mobile-back-edit" class="md:hidden flex items-center gap-1 text-xs text-primary font-bold border border-primary/30 bg-primary/5 px-2.5 py-1.5 rounded-lg transition-all">
@@ -753,7 +770,6 @@
               <div class="flex-1 overflow-y-auto overflow-x-hidden w-full flex flex-col items-center"
                 id="preview-scroll-area"
                 style="
-                  scroll-behavior:smooth;
                   padding: 16px;
                   background-color: #f3f4f6;
                   scrollbar-width: thin;
