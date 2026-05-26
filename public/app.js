@@ -1961,7 +1961,7 @@ function setupListeners() {
     if (elements.stageCrop.style.display !== "none") {
       updateCropUI();
     }
-  });
+  }, { passive: true });
 
 
   // Keyboard arrow navigation between pages (when not in a text input)
@@ -2759,13 +2759,16 @@ function initCustomCursor() {
   let ringX = -100;
   let ringY = -100;
   let hasMoved = false;
+  let rafId = null;
 
   window.addEventListener("pointermove", (e) => {
-    // Only activate custom cursor for actual mouse pointers (prevents hiding cursor/issues on touchpads/mobile screen taps)
     if (e.pointerType !== "mouse") return;
-    
+
     mouseX = e.clientX;
     mouseY = e.clientY;
+
+    // Instant follow for the inner dot — cheapest possible update
+    dotWrapper.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
 
     if (!hasMoved) {
       hasMoved = true;
@@ -2776,49 +2779,52 @@ function initCustomCursor() {
       ringY = mouseY;
     }
 
-    // Instant follow for the inner dot
-    dotWrapper.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
-  });
+    // Start RAF only when cursor is actually moving
+    if (!rafId) rafId = requestAnimationFrame(tick);
+  }, { passive: true });
 
-  // Handle pointer leaving window
   document.addEventListener("pointerleave", () => {
     dotWrapper.style.opacity = "0";
     ringWrapper.style.opacity = "0";
     document.body.classList.remove("custom-cursor-enabled");
     hasMoved = false;
-  });
+  }, { passive: true });
 
   function tick() {
-    if (hasMoved) {
-      // Lerp (Linear Interpolation) for the lag-ring trail
-      const dx = mouseX - ringX;
-      const dy = mouseY - ringY;
-      if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-        ringX += dx * 0.15;
-        ringY += dy * 0.15;
-        ringWrapper.style.transform = `translate3d(${ringX}px, ${ringY}px, 0)`;
-      }
+    rafId = null;
+    const dx = mouseX - ringX;
+    const dy = mouseY - ringY;
+    if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+      ringX += dx * 0.15;
+      ringY += dy * 0.15;
+      ringWrapper.style.transform = `translate3d(${ringX}px, ${ringY}px, 0)`;
+      // Ring still catching up — schedule next frame
+      rafId = requestAnimationFrame(tick);
     }
-    requestAnimationFrame(tick);
+    // Ring has caught up — RAF stops automatically, zero idle CPU
   }
-  requestAnimationFrame(tick);
 
-  // Mouse hover event delegation for clickables
+  // Hover: use pointerenter/leave with capture for efficiency, avoid closest() on every move
   const hoverSelector = "button, a, .shape-card, .thumb, .dropzone, input, select, textarea, [role='button'], .crop-interactive-area, .crop-queue-thumb, .doc-thumbnail, .doc-card, .preset-card";
 
-  document.addEventListener("mouseover", (e) => {
-    if (e.target.closest && e.target.closest(hoverSelector)) {
+  document.addEventListener("pointerover", (e) => {
+    if (e.pointerType !== "mouse") return;
+    if (e.target.matches && e.target.matches(hoverSelector)) {
+      dot.classList.add("hovered");
+      ring.classList.add("hovered");
+    } else if (e.target.closest && e.target.closest(hoverSelector)) {
       dot.classList.add("hovered");
       ring.classList.add("hovered");
     }
-  });
+  }, { passive: true });
 
-  document.addEventListener("mouseout", (e) => {
-    if (e.target.closest && e.target.closest(hoverSelector)) {
+  document.addEventListener("pointerout", (e) => {
+    if (e.pointerType !== "mouse") return;
+    if (!e.relatedTarget || !(e.relatedTarget.closest && e.relatedTarget.closest(hoverSelector))) {
       dot.classList.remove("hovered");
       ring.classList.remove("hovered");
     }
-  });
+  }, { passive: true });
 }
 
 // ── License UI ────────────────────────────────────────────────
