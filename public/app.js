@@ -1239,8 +1239,8 @@ function updateCropImageStyleOnly() {
 
   elements.cropPreviewImg.style.width = `${wZoomed * editorScale}px`;
   elements.cropPreviewImg.style.height = `${hZoomed * editorScale}px`;
-  elements.cropPreviewImg.style.left = `${xNative * editorScale}px`;
-  elements.cropPreviewImg.style.top = `${yNative * editorScale}px`;
+  elements.cropPreviewImg.style.transform = `translate(${xNative * editorScale}px, ${yNative * editorScale}px) translateZ(0)`;
+  elements.cropPreviewImg.style.willChange = "transform";
 }
 
 function updateCropUI() {
@@ -1300,8 +1300,8 @@ function updateCropUI() {
   elements.cropPreviewImg.src = state.selectedImageUri;
   elements.cropPreviewImg.style.width = `${wZoomed * editorScale}px`;
   elements.cropPreviewImg.style.height = `${hZoomed * editorScale}px`;
-  elements.cropPreviewImg.style.left = `${xNative * editorScale}px`;
-  elements.cropPreviewImg.style.top = `${yNative * editorScale}px`;
+  elements.cropPreviewImg.style.transform = `translate(${xNative * editorScale}px, ${yNative * editorScale}px) translateZ(0)`;
+  elements.cropPreviewImg.style.willChange = "transform";
 
   updateGuidelinesSvg(shape);
 
@@ -2232,14 +2232,15 @@ function setupListeners() {
     elements.cropInteractiveArea.style.cursor = "grabbing";
   });
 
+  let pendingDragUpdate = false;
   elements.cropInteractiveArea.addEventListener("pointermove", (e) => {
     if (!isDragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    
+
     const shape = MAGNET[state.shapeId];
     if (!shape) return;
-    
+
     const maxWorkspaceDim = 360;
     let editorW;
     if (shape.slotW > shape.slotH) {
@@ -2250,7 +2251,7 @@ function setupListeners() {
     const editorScale = editorW / shape.slotW;
 
     const crop = state.crops[state.selectedImageUri];
-    
+
     const rSlot = shape.magnetW / shape.magnetH;
     const rImg = crop.aspectRatio;
     let wBase, hBase;
@@ -2273,13 +2274,20 @@ function setupListeners() {
     crop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, newOffsetX));
     crop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, newOffsetY));
 
-    // Update range slider positions and labels in real time
-    elements.sliderX.value = Math.round(crop.offsetX);
-    document.getElementById("val-x").textContent = Math.round(crop.offsetX);
-    elements.sliderY.value = Math.round(crop.offsetY);
-    document.getElementById("val-y").textContent = Math.round(crop.offsetY);
-
+    // Update image position every frame (smooth)
     updateCropImageStyleOnly();
+
+    // Update UI only on next frame (debounced)
+    if (!pendingDragUpdate) {
+      pendingDragUpdate = true;
+      requestAnimationFrame(() => {
+        elements.sliderX.value = Math.round(crop.offsetX);
+        document.getElementById("val-x").textContent = Math.round(crop.offsetX);
+        elements.sliderY.value = Math.round(crop.offsetY);
+        document.getElementById("val-y").textContent = Math.round(crop.offsetY);
+        pendingDragUpdate = false;
+      });
+    }
   });
 
   elements.cropInteractiveArea.addEventListener("pointerup", (e) => {
@@ -2719,14 +2727,14 @@ function initializeApp() {
       shapeId: "circle",
       footer: "MADE USING PRINTBOT ( Built By SHOPSHIP )",
       items: [
-        { id: "item_family1", shapeId: "circle", uri: "assets/family1.webp" },
-        { id: "item_family2", shapeId: "circle", uri: "assets/family2.webp" },
-        { id: "item_family3", shapeId: "circle", uri: "assets/family3.webp" },
+        { id: "item_family1", shapeId: "circle", uri: "assets/family1.png" },
+        { id: "item_family2", shapeId: "circle", uri: "assets/family2.png" },
+        { id: "item_family3", shapeId: "circle", uri: "assets/family3.png" },
       ],
       crops: {
-        "assets/family1.webp": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
-        "assets/family2.webp": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
-        "assets/family3.webp": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
+        "assets/family1.png": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
+        "assets/family2.png": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
+        "assets/family3.png": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
       },
       lastModified: Date.now()
     };
