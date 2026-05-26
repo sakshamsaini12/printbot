@@ -2719,14 +2719,14 @@ function initializeApp() {
       shapeId: "circle",
       footer: "MADE USING PRINTBOT ( Built By SHOPSHIP )",
       items: [
-        { id: "item_family1", shapeId: "circle", uri: "assets/family1.png" },
-        { id: "item_family2", shapeId: "circle", uri: "assets/family2.png" },
-        { id: "item_family3", shapeId: "circle", uri: "assets/family3.png" },
+        { id: "item_family1", shapeId: "circle", uri: "assets/family1.webp" },
+        { id: "item_family2", shapeId: "circle", uri: "assets/family2.webp" },
+        { id: "item_family3", shapeId: "circle", uri: "assets/family3.webp" },
       ],
       crops: {
-        "assets/family1.png": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
-        "assets/family2.png": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
-        "assets/family3.png": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
+        "assets/family1.webp": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
+        "assets/family2.webp": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
+        "assets/family3.webp": { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 },
       },
       lastModified: Date.now()
     };

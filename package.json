@@ -4,11 +4,14 @@
   "description": "PrintBot - Premium Layout Workspace for ShopShip",
   "main": "server.js",
   "scripts": {
-    "build": "mkdir -p public && cp index.html app.js keygen.html public/ 2>/dev/null && cp -r assets public/ 2>/dev/null || true",
+    "build": "mkdir -p public && cp index.html keygen.html public/ 2>/dev/null && cp -r assets public/ 2>/dev/null && npx terser app.js -o public/app.min.js -c -m 2>/dev/null || true",
     "start": "node server.js",
     "dev": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "terser": "^5.48.0"
   }
 }

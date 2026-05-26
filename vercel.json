@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "env": {
+    "COMPRESSION": "gzip"
+  },
   "builds": [
     {
       "src": "server.js",
@@ -10,6 +13,24 @@
     }
   ],
   "routes": [
+    {
+      "src": "/assets/.*",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "src": "/(app\\.min\\.js|.*\\.webp|.*\\.jpg)",
+      "headers": {
+        "cache-control": "public, max-age=2592000"
+      }
+    },
+    {
+      "src": "/.*\\.html",
+      "headers": {
+        "cache-control": "public, max-age=3600"
+      }
+    },
     {
       "src": "/(.*)",
       "dest": "server.js"
