@@ -1239,8 +1239,8 @@ function updateCropImageStyleOnly() {
 
   elements.cropPreviewImg.style.width = `${wZoomed * editorScale}px`;
   elements.cropPreviewImg.style.height = `${hZoomed * editorScale}px`;
-  elements.cropPreviewImg.style.transform = `translate(${xNative * editorScale}px, ${yNative * editorScale}px) translateZ(0)`;
-  elements.cropPreviewImg.style.willChange = "transform";
+  elements.cropPreviewImg.style.left = `${xNative * editorScale}px`;
+  elements.cropPreviewImg.style.top = `${yNative * editorScale}px`;
 }
 
 function updateCropUI() {
@@ -1300,8 +1300,8 @@ function updateCropUI() {
   elements.cropPreviewImg.src = state.selectedImageUri;
   elements.cropPreviewImg.style.width = `${wZoomed * editorScale}px`;
   elements.cropPreviewImg.style.height = `${hZoomed * editorScale}px`;
-  elements.cropPreviewImg.style.transform = `translate(${xNative * editorScale}px, ${yNative * editorScale}px) translateZ(0)`;
-  elements.cropPreviewImg.style.willChange = "transform";
+  elements.cropPreviewImg.style.left = `${xNative * editorScale}px`;
+  elements.cropPreviewImg.style.top = `${yNative * editorScale}px`;
 
   updateGuidelinesSvg(shape);
 
@@ -2232,15 +2232,14 @@ function setupListeners() {
     elements.cropInteractiveArea.style.cursor = "grabbing";
   });
 
-  let pendingDragUpdate = false;
   elements.cropInteractiveArea.addEventListener("pointermove", (e) => {
     if (!isDragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-
+    
     const shape = MAGNET[state.shapeId];
     if (!shape) return;
-
+    
     const maxWorkspaceDim = 360;
     let editorW;
     if (shape.slotW > shape.slotH) {
@@ -2251,7 +2250,7 @@ function setupListeners() {
     const editorScale = editorW / shape.slotW;
 
     const crop = state.crops[state.selectedImageUri];
-
+    
     const rSlot = shape.magnetW / shape.magnetH;
     const rImg = crop.aspectRatio;
     let wBase, hBase;
@@ -2274,20 +2273,13 @@ function setupListeners() {
     crop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, newOffsetX));
     crop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, newOffsetY));
 
-    // Update image position every frame (smooth)
-    updateCropImageStyleOnly();
+    // Update range slider positions and labels in real time
+    elements.sliderX.value = Math.round(crop.offsetX);
+    document.getElementById("val-x").textContent = Math.round(crop.offsetX);
+    elements.sliderY.value = Math.round(crop.offsetY);
+    document.getElementById("val-y").textContent = Math.round(crop.offsetY);
 
-    // Update UI only on next frame (debounced)
-    if (!pendingDragUpdate) {
-      pendingDragUpdate = true;
-      requestAnimationFrame(() => {
-        elements.sliderX.value = Math.round(crop.offsetX);
-        document.getElementById("val-x").textContent = Math.round(crop.offsetX);
-        elements.sliderY.value = Math.round(crop.offsetY);
-        document.getElementById("val-y").textContent = Math.round(crop.offsetY);
-        pendingDragUpdate = false;
-      });
-    }
+    updateCropImageStyleOnly();
   });
 
   elements.cropInteractiveArea.addEventListener("pointerup", (e) => {
