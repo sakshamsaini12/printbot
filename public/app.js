@@ -2754,76 +2754,34 @@ function initCustomCursor() {
 
   if (!dotWrapper || !ringWrapper || !dot || !ring) return;
 
-  let mouseX = -100;
-  let mouseY = -100;
-  let ringX = -100;
-  let ringY = -100;
   let hasMoved = false;
-  let rafId = null;
 
+  // Direct CSS variable update — no RAF, no lerp, zero lag
   window.addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse") return;
-
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-
-    // Instant follow for the inner dot — cheapest possible update
-    dotWrapper.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
-
+    dotWrapper.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`;
     if (!hasMoved) {
       hasMoved = true;
       document.body.classList.add("custom-cursor-enabled");
       dotWrapper.style.opacity = "1";
-      ringWrapper.style.opacity = "1";
-      ringX = mouseX;
-      ringY = mouseY;
     }
-
-    // Start RAF only when cursor is actually moving
-    if (!rafId) rafId = requestAnimationFrame(tick);
   }, { passive: true });
 
   document.addEventListener("pointerleave", () => {
     dotWrapper.style.opacity = "0";
-    ringWrapper.style.opacity = "0";
     document.body.classList.remove("custom-cursor-enabled");
     hasMoved = false;
   }, { passive: true });
 
-  function tick() {
-    rafId = null;
-    const dx = mouseX - ringX;
-    const dy = mouseY - ringY;
-    if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-      ringX += dx * 0.15;
-      ringY += dy * 0.15;
-      ringWrapper.style.transform = `translate3d(${ringX}px, ${ringY}px, 0)`;
-      // Ring still catching up — schedule next frame
-      rafId = requestAnimationFrame(tick);
-    }
-    // Ring has caught up — RAF stops automatically, zero idle CPU
-  }
-
-  // Hover: use pointerenter/leave with capture for efficiency, avoid closest() on every move
-  const hoverSelector = "button, a, .shape-card, .thumb, .dropzone, input, select, textarea, [role='button'], .crop-interactive-area, .crop-queue-thumb, .doc-thumbnail, .doc-card, .preset-card";
-
+  // Scale up logo on hover over interactive elements
+  const hoverSelector = "button,a,.shape-card,.thumb,.dropzone,input,select,[role='button'],.doc-thumbnail,.doc-card";
   document.addEventListener("pointerover", (e) => {
     if (e.pointerType !== "mouse") return;
-    if (e.target.matches && e.target.matches(hoverSelector)) {
-      dot.classList.add("hovered");
-      ring.classList.add("hovered");
-    } else if (e.target.closest && e.target.closest(hoverSelector)) {
-      dot.classList.add("hovered");
-      ring.classList.add("hovered");
-    }
+    if (e.target.closest && e.target.closest(hoverSelector)) dot.classList.add("hovered");
   }, { passive: true });
-
   document.addEventListener("pointerout", (e) => {
     if (e.pointerType !== "mouse") return;
-    if (!e.relatedTarget || !(e.relatedTarget.closest && e.relatedTarget.closest(hoverSelector))) {
-      dot.classList.remove("hovered");
-      ring.classList.remove("hovered");
-    }
+    if (!e.relatedTarget?.closest?.(hoverSelector)) dot.classList.remove("hovered");
   }, { passive: true });
 }
 

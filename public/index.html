@@ -158,37 +158,32 @@
       }
       
       /* Custom Cursor styles */
-      .custom-cursor-dot-wrapper,
-      .custom-cursor-ring-wrapper {
+      .custom-cursor-dot-wrapper {
         position: fixed;
         top: 0;
         left: 0;
         pointer-events: none;
         z-index: 999999;
         opacity: 0;
-        transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         will-change: transform;
+        backface-visibility: hidden;
       }
       .custom-cursor-dot {
-        width: 26px;
-        height: 26px;
+        width: 28px;
+        height: 28px;
         background-image: url('assets/shopship_logo.jpg');
         background-size: cover;
         background-position: center;
         border-radius: 50%;
-        border: 1.2px solid #0EA5E9;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        transform: translate(-50%, -50%) scale(1);
-        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+        border: 1.5px solid rgba(255,255,255,0.6);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        transform: translate(-50%, -50%);
+        transition: transform 0.15s ease, opacity 0.2s ease;
       }
-      .custom-cursor-ring {
-        width: 42px;
-        height: 42px;
-        border: 1.2px solid rgba(124, 58, 237, 0.4);
-        border-radius: 50%;
-        transform: translate(-50%, -50%) scale(1);
-        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background-color 0.2s ease;
+      .custom-cursor-dot.hovered {
+        transform: translate(-50%, -50%) scale(1.25);
       }
+      .custom-cursor-ring-wrapper { display: none; }
       body.custom-cursor-enabled,
       body.custom-cursor-enabled * {
         cursor: none !important;
@@ -923,9 +918,6 @@
     <!-- Custom Mascot Cursor Elements -->
     <div class="custom-cursor-dot-wrapper" id="cursor-dot-wrapper">
       <div class="custom-cursor-dot" id="cursor-dot"></div>
-    </div>
-    <div class="custom-cursor-ring-wrapper" id="cursor-ring-wrapper">
-      <div class="custom-cursor-ring" id="cursor-ring"></div>
     </div>
 
     <!-- ── Activation Modal ──────────────────────────────── -->
