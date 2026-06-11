@@ -786,7 +786,10 @@ function renderPreview() {
 
   // Compute scale — cap page width so it floats in grey canvas with visible margins (Canva-style)
   const scrollArea = document.getElementById("preview-scroll-area");
-  const scrollW = scrollArea ? scrollArea.clientWidth : 900;
+  let scrollW = scrollArea ? scrollArea.clientWidth : 900;
+  // If the container is hidden (e.g. mobile view before "View Preview" is tapped),
+  // clientWidth is 0 — fall back to the viewport width so we don't compute a negative scale.
+  if (!scrollW) scrollW = window.innerWidth || 900;
   // Max page width: container minus at least 80px of grey on each side, capped at 720px
   const maxPagePx = Math.min(720, scrollW - 80);
   const scale = (maxPagePx / A4.width) * state.previewZoom;
@@ -1215,13 +1218,27 @@ function triggerDownload(dataUrl, filename) {
   document.body.removeChild(link);
 }
 
+// The crop editor's interactive area is sized to fit within #crop-canvas-wrapper.
+// On narrow (mobile) viewports the wrapper is smaller than the 360px desktop default,
+// and flexbox shrinks the absolutely-positioned #crop-interactive-area to match — so
+// all editor math must use this actual available size, not a hardcoded 360.
+function getCropMaxDim() {
+  const wrapper = document.getElementById("crop-canvas-wrapper");
+  if (!wrapper) return 360;
+  const style = getComputedStyle(wrapper);
+  const padX = parseFloat(style.paddingLeft || 0) + parseFloat(style.paddingRight || 0);
+  const available = wrapper.clientWidth - padX;
+  if (!available || available <= 0) return 360;
+  return Math.max(120, Math.min(360, available));
+}
+
 function updateCropImageStyleOnly() {
   if (!state.selectedImageUri) return;
   const crop = state.crops[state.selectedImageUri];
   const shape = MAGNET[state.shapeId];
   if (!shape) return;
-  
-  const maxWorkspaceDim = 360;
+
+  const maxWorkspaceDim = getCropMaxDim();
   let editorW, editorH;
   if (shape.slotW > shape.slotH) {
     editorW = maxWorkspaceDim;
@@ -1272,8 +1289,8 @@ function updateCropUI() {
   const crop = state.crops[state.selectedImageUri];
   const shape = MAGNET[state.shapeId];
   if (!shape) return;
-  
-  const maxWorkspaceDim = 360;
+
+  const maxWorkspaceDim = getCropMaxDim();
   let editorW, editorH;
   if (shape.slotW > shape.slotH) {
     editorW = maxWorkspaceDim;
@@ -2254,8 +2271,8 @@ function setupListeners() {
     
     const shape = MAGNET[state.shapeId];
     if (!shape) return;
-    
-    const maxWorkspaceDim = 360;
+
+    const maxWorkspaceDim = getCropMaxDim();
     let editorW;
     if (shape.slotW > shape.slotH) {
       editorW = maxWorkspaceDim;
