@@ -16,6 +16,21 @@ const crypto  = require("crypto");
 const fs      = require("fs");
 const path    = require("path");
 
+// ── Load .env.local / .env for local dev (Vercel sets real env vars itself) ──
+for (const file of [".env.local", ".env"]) {
+  const envPath = path.join(__dirname, file);
+  if (!fs.existsSync(envPath)) continue;
+  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+    const m = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (!m) continue;
+    const key = m[1];
+    let val = (m[2] || "").trim();
+    if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+    if (val.startsWith("'") && val.endsWith("'")) val = val.slice(1, -1);
+    if (!(key in process.env)) process.env[key] = val;
+  }
+}
+
 const app = express();
 app.use(express.json({ limit: "50kb" })); // cap body size
 

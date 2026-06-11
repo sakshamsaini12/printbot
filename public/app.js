@@ -2388,7 +2388,17 @@ function saveActiveDocument() {
   docs[idx].fileQtys = state.fileQtys;
   docs[idx].fileShapes = state.fileShapes;
   docs[idx].lastModified = Date.now();
+  if (state.items.length > 0) docs[idx].draft = false;
 
+  _flushDocsCache();
+}
+
+/** Remove documents that were created but never had any images added. */
+function pruneEmptyDrafts() {
+  const docs = getAllDocuments();
+  const kept = docs.filter(d => !(d.draft && (!d.items || d.items.length === 0)));
+  if (kept.length === docs.length) return;
+  _docsCache = kept;
   _flushDocsCache();
 }
 
@@ -2422,7 +2432,8 @@ function createNewDocument(shapeId) {
     footer: "MADE USING PRINTBOT ( Built By SHOPSHIP )",
     items: [],
     crops: {},
-    lastModified: Date.now()
+    lastModified: Date.now(),
+    draft: true, // pruned from Recent Designs if left empty
   };
 
   saveDocument(newDoc);
@@ -2542,6 +2553,7 @@ function showView(viewName) {
       if (backSep) backSep.style.display = "none";
       if (btnGenerate) btnGenerate.style.display = "none";
       state.activeDocId = null;
+      pruneEmptyDrafts();
       renderDashboard();
     } else {
       if (dashboard) dashboard.style.display = "none";
