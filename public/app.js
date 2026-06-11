@@ -1437,7 +1437,7 @@ function updateGuidelinesSvg(shape) {
     <text x="14" y="26" fill="rgba(239, 68, 68, 0.85)" font-size="16" font-family="Space Mono, monospace" font-weight="700">BLEED ZONE</text>
     
     ${cutPath}
-    <text x="${xCut + 14}" y="${yCut - 10}" fill="#10b981" font-size="16" font-family="Space Mono, monospace" font-weight="700">CUT LINE</text>
+    <text x="${xCut + 14}" y="${Math.max(yCut - 10, 48)}" fill="#10b981" font-size="16" font-family="Space Mono, monospace" font-weight="700">CUT LINE</text>
     
     ${safePath}
     <text x="${xCut + 34}" y="${yCut + 42}" fill="#6366f1" font-size="16" font-family="Space Mono, monospace" font-weight="700">SAFE AREA</text>
@@ -2158,18 +2158,50 @@ function setupListeners() {
     const currentCrop = state.crops[state.selectedImageUri];
     if (!currentCrop) return;
 
+    const shape = MAGNET[state.shapeId];
+    const rSlot = shape ? shape.magnetW / shape.magnetH : 1;
+
     state.files.forEach((file) => {
       if (file.uri !== state.selectedImageUri) {
         if (!state.crops[file.uri]) {
           state.crops[file.uri] = { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: file.aspectRatio, width: file.width, height: file.height };
         }
-        state.crops[file.uri].scale = currentCrop.scale;
-        state.crops[file.uri].offsetX = currentCrop.offsetX;
-        state.crops[file.uri].offsetY = currentCrop.offsetY;
+        const targetCrop = state.crops[file.uri];
+        targetCrop.scale = currentCrop.scale;
+
+        // Clamp offsets to this image's own pan range — its aspect ratio may
+        // differ from the source image, so the source's offsets may be out of bounds.
+        if (shape) {
+          const rImg = targetCrop.aspectRatio;
+          let wBase, hBase;
+          if (rImg > rSlot) {
+            hBase = shape.magnetH;
+            wBase = shape.magnetH * rImg;
+          } else {
+            wBase = shape.magnetW;
+            hBase = shape.magnetW / rImg;
+          }
+          const wZoomed = wBase * targetCrop.scale;
+          const hZoomed = hBase * targetCrop.scale;
+          const maxOffsetX = (wZoomed - shape.magnetW) / 2;
+          const maxOffsetY = (hZoomed - shape.magnetH) / 2;
+          targetCrop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, currentCrop.offsetX));
+          targetCrop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, currentCrop.offsetY));
+        } else {
+          targetCrop.offsetX = currentCrop.offsetX;
+          targetCrop.offsetY = currentCrop.offsetY;
+        }
+
+        // Copy color/filter adjustments too
+        targetCrop.brightness = currentCrop.brightness ?? 1;
+        targetCrop.contrast = currentCrop.contrast ?? 1;
+        targetCrop.saturation = currentCrop.saturation ?? 1;
+        targetCrop.filterExtra = currentCrop.filterExtra ?? "";
+        targetCrop.preset = currentCrop.preset ?? "original";
       }
     });
 
-    setStatus("Applied crop settings to all images.");
+    setStatus("Applied crop and color settings to all images.");
     renderPreview();
     renderCropQueue();
     debouncedSave();
