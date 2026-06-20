@@ -1415,7 +1415,7 @@ function updateGuidelinesSvg(shape, editorScale) {
     const yCutPx = yCut * editorScale;
     const mwPx = mw * editorScale;
     const mhPx = mh * editorScale;
-    if (shape.id === "circle") {
+    if (shape.type === "circle" || shape.id === "circle") {
       imgClipShape = `<circle cx="${cxPx}" cy="${cyPx}" r="${mwPx / 2}" />`;
     } else if (shape.type === "path" || shape.path) {
       const sfX = mwPx / 709;
@@ -1432,7 +1432,7 @@ function updateGuidelinesSvg(shape, editorScale) {
   let cutPath = "";
   let safePath = "";
 
-  if (shape.id === "circle") {
+  if (shape.type === "circle" || shape.id === "circle") {
     const rCut = mw / 2;
     const rSafe = rCut - 24;
     
