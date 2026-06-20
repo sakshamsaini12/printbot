@@ -258,6 +258,7 @@ const state = {
   fileNames: {}, // uri -> custom display name
   fileQtys: {},  // uri -> repeat count (default 1)
   fileShapes: {}, // uri -> shapeId override (null = use global)
+  fileShapesPinned: {}, // uri -> true once the user manually picks a per-image shape chip
   previewZoom: 1.0, // canvas zoom level
 };
 
@@ -549,8 +550,13 @@ function createShapeButtons() {
 
     card.addEventListener("click", () => {
       state.shapeId = card.dataset.shape;
+      // Only re-stamp images that haven't had their shape manually overridden
+      // per-image — otherwise picking a template here would silently wipe out
+      // any custom per-image shape assignments made via the upload list chips.
       Object.keys(state.fileShapes).forEach(uri => {
-        state.fileShapes[uri] = state.shapeId;
+        if (!state.fileShapesPinned[uri]) {
+          state.fileShapes[uri] = state.shapeId;
+        }
       });
       rebuildItems();
       updateShapeSelection();
@@ -1649,6 +1655,7 @@ function deleteImage(uri) {
   delete state.fileNames[uri];
   delete state.fileQtys[uri];
   delete state.fileShapes[uri];
+  delete state.fileShapesPinned[uri];
 
   if (state.selectedImageUri === uri) {
     if (state.files.length > 0) {
@@ -1779,6 +1786,7 @@ function renderImageQueue() {
         e.stopPropagation();
         const newShape = chip.dataset.shape;
         state.fileShapes[uri] = newShape;
+        state.fileShapesPinned[uri] = true;
         item.querySelectorAll(".iq-shape-chip").forEach(c => c.classList.toggle("active", c.dataset.shape === newShape));
         rebuildItems();
         debouncedGenerateLayout();
@@ -1818,6 +1826,7 @@ function setupListeners() {
       state.fileNames = {};
       state.fileQtys = {};
       state.fileShapes = {};
+      state.fileShapesPinned = {};
       state.selectedImageUri = null;
       state.pages = [];
       state.selectedPage = 0;
@@ -2023,7 +2032,9 @@ function setupListeners() {
 
       state.shapeId = customId;
       Object.keys(state.fileShapes).forEach(uri => {
-        state.fileShapes[uri] = state.shapeId;
+        if (!state.fileShapesPinned[uri]) {
+          state.fileShapes[uri] = state.shapeId;
+        }
       });
       rebuildItems();
       updateShapeSelection();
@@ -2483,6 +2494,7 @@ function saveActiveDocument() {
   docs[idx].fileNames = state.fileNames;
   docs[idx].fileQtys = state.fileQtys;
   docs[idx].fileShapes = state.fileShapes;
+  docs[idx].fileShapesPinned = state.fileShapesPinned;
   docs[idx].lastModified = Date.now();
   if (state.items.length > 0) docs[idx].draft = false;
 
@@ -2550,6 +2562,7 @@ async function loadDocument(docId) {
   state.fileNames = doc.fileNames || {};
   state.fileQtys = doc.fileQtys || {};
   state.fileShapes = doc.fileShapes || {};
+  state.fileShapesPinned = doc.fileShapesPinned || {};
   // state.items will be rebuilt from files + fileQtys after file reconstruction
   
   // Derive unique URIs: prefer fileQtys keys (new saves), fall back to doc.items (legacy)
