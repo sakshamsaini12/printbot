@@ -203,6 +203,19 @@ const MAGNET = {
     type: "path",
     path: "M 354.5 0 L 464.3 222.5 L 709 258.1 L 531.8 430.8 L 573.6 674.6 L 354.5 559.4 L 135.4 674.6 L 177.2 430.8 L 0 258.1 L 244.7 222.5 Z",
   },
+  acrylicFrame: {
+    id: "acrylicFrame",
+    label: "2.5\" × 3.5\"",
+    subtitle: "Acrylic Frame · 4 per page",
+    magnetW: 808,
+    magnetH: 1120,
+    slotW: 969,
+    slotH: 1271,
+    borderRadius: 70,
+    safeMarginPx: 24,
+    margin: 80,
+    type: "rectangle",
+  },
 };
 
 const FILTER_PRESETS = {
