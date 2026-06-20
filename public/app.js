@@ -215,6 +215,7 @@ const MAGNET = {
     safeMarginPx: 24,
     margin: 80,
     type: "rectangle",
+    showBoundary: false,
   },
 };
 
