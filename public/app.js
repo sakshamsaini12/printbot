@@ -1783,6 +1783,11 @@ function renderImageQueue() {
         rebuildItems();
         debouncedGenerateLayout();
         debouncedSave();
+        // Keep the crop editor in sync if it's open on this (or any) image
+        if (elements.stageCrop.style.display !== "none") {
+          renderCropQueue();
+          if (state.selectedImageUri === uri) updateCropUI();
+        }
       });
     });
 
