@@ -786,7 +786,9 @@
                 <!-- Drag Area Workspace (Left 8 Cols) -->
                 <div class="col-span-12 lg:col-span-8 flex justify-center items-center bg-gray-100 border border-outline rounded-3xl p-6 relative overflow-hidden" id="crop-canvas-wrapper">
                   <div class="relative overflow-hidden cursor-grab active:cursor-grabbing select-none" id="crop-interactive-area" style="width: 360px; height: 360px;">
-                    <img id="crop-preview-img" src="" alt="Crop Preview" class="absolute max-w-none max-h-none pointer-events-none select-none" style="display: none;" />
+                    <div class="absolute inset-0 w-full h-full" id="crop-img-clip-wrapper">
+                      <img id="crop-preview-img" src="" alt="Crop Preview" class="absolute max-w-none max-h-none pointer-events-none select-none" style="display: none;" />
+                    </div>
                     <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" id="crop-guidelines" xmlns="http://www.w3.org/2000/svg"></svg>
                   </div>
                 </div>

@@ -269,6 +269,7 @@ const elements = {
   stageA4: document.getElementById("stage-a4"),
   stageCrop: document.getElementById("stage-crop"),
   cropInteractiveArea: document.getElementById("crop-interactive-area"),
+  cropImgClipWrapper: document.getElementById("crop-img-clip-wrapper"),
   cropPreviewImg: document.getElementById("crop-preview-img"),
   cropGuidelines: document.getElementById("crop-guidelines"),
   sliderZoom: document.getElementById("slider-zoom"),
@@ -1335,7 +1336,7 @@ function updateCropUI() {
   elements.cropPreviewImg.style.left = `${xNative * editorScale}px`;
   elements.cropPreviewImg.style.top = `${yNative * editorScale}px`;
 
-  updateGuidelinesSvg(shape);
+  updateGuidelinesSvg(shape, editorScale);
 
   elements.sliderZoom.disabled = false;
   elements.sliderZoom.value = crop.scale;
@@ -1376,7 +1377,7 @@ function updateCropUI() {
   elements.cropPreviewImg.style.filter = getFilterString(crop);
 }
 
-function updateGuidelinesSvg(shape) {
+function updateGuidelinesSvg(shape, editorScale) {
   const svg = elements.cropGuidelines;
   svg.setAttribute("viewBox", `0 0 ${shape.slotW} ${shape.slotH}`);
   svg.innerHTML = "";
@@ -1389,6 +1390,29 @@ function updateGuidelinesSvg(shape) {
   const yCut = (h - mh) / 2;
   const cx = w / 2;
   const cy = h / 2;
+
+  // Actual clip applied to the image itself, so the live preview is masked to
+  // the real magnet shape (circle/heart/star/etc), not just darkened around a rect.
+  let imgClipShape = "";
+  if (elements.cropImgClipWrapper && editorScale) {
+    const cxPx = cx * editorScale;
+    const cyPx = cy * editorScale;
+    const xCutPx = xCut * editorScale;
+    const yCutPx = yCut * editorScale;
+    const mwPx = mw * editorScale;
+    const mhPx = mh * editorScale;
+    if (shape.id === "circle") {
+      imgClipShape = `<circle cx="${cxPx}" cy="${cyPx}" r="${mwPx / 2}" />`;
+    } else if (shape.type === "path" || shape.path) {
+      const sfX = mwPx / 709;
+      const sfY = mhPx / 709;
+      imgClipShape = `<path d="${shape.path}" transform="translate(${xCutPx}, ${yCutPx}) scale(${sfX}, ${sfY})" />`;
+    } else {
+      const br = (shape.borderRadius || 0) * editorScale;
+      imgClipShape = `<rect x="${xCutPx}" y="${yCutPx}" width="${mwPx}" height="${mhPx}" rx="${br}" ry="${br}" />`;
+    }
+    elements.cropImgClipWrapper.style.clipPath = "url(#crop-img-shape-clip)";
+  }
 
   let maskPath = "";
   let cutPath = "";
@@ -1429,6 +1453,9 @@ function updateGuidelinesSvg(shape) {
         <rect x="0" y="0" width="${w}" height="${h}" fill="white" />
         ${maskPath}
       </mask>
+      <clipPath id="crop-img-shape-clip">
+        ${imgClipShape}
+      </clipPath>
     </defs>
     
     <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(9, 9, 11, 0.75)" mask="url(#editor-crop-mask)" />
