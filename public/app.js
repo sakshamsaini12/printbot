@@ -1250,7 +1250,7 @@ function getCropMaxDim() {
 function updateCropImageStyleOnly() {
   if (!state.selectedImageUri) return;
   const crop = state.crops[state.selectedImageUri];
-  const shape = MAGNET[state.shapeId];
+  const shape = MAGNET[state.fileShapes[state.selectedImageUri] || state.shapeId];
   if (!shape) return;
 
   const maxWorkspaceDim = getCropMaxDim();
@@ -1302,7 +1302,7 @@ function updateCropUI() {
   elements.cropPreviewImg.style.display = "block";
 
   const crop = state.crops[state.selectedImageUri];
-  const shape = MAGNET[state.shapeId];
+  const shape = MAGNET[state.fileShapes[state.selectedImageUri] || state.shapeId];
   if (!shape) return;
 
   const maxWorkspaceDim = getCropMaxDim();
@@ -1486,7 +1486,8 @@ function updateGuidelinesSvg(shape, editorScale) {
 }
 
 function createThumbSvg(item, crop) {
-  const shape = MAGNET[state.shapeId];
+  const activeShapeId = item.shapeId || state.fileShapes[item.uri] || state.shapeId;
+  const shape = MAGNET[activeShapeId];
   if (!shape) return "";
   const scale = 80 / shape.slotW;
   const w = 80;
@@ -1520,7 +1521,7 @@ function createThumbSvg(item, crop) {
 
   let clipPathContent = "";
   let outlineContent = "";
-  if (state.shapeId === "circle" || shape.type === "circle") {
+  if (activeShapeId === "circle" || shape.type === "circle") {
     clipPathContent = `<circle cx="${w / 2}" cy="${h / 2}" r="${mw / 2}" />`;
     outlineContent = `<circle cx="${w / 2}" cy="${h / 2}" r="${mw / 2}" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" fill="none" />`;
   } else if (shape.type === "path" || shape.path) {
@@ -2089,8 +2090,8 @@ function setupListeners() {
     if (!state.selectedImageUri) return;
     const crop = state.crops[state.selectedImageUri];
     crop.scale = parseFloat(e.target.value);
-    
-    const shape = MAGNET[state.shapeId];
+
+    const shape = MAGNET[state.fileShapes[state.selectedImageUri] || state.shapeId];
     if (shape) {
       const rSlot = shape.magnetW / shape.magnetH;
       const rImg = crop.aspectRatio;
@@ -2199,9 +2200,6 @@ function setupListeners() {
     const currentCrop = state.crops[state.selectedImageUri];
     if (!currentCrop) return;
 
-    const shape = MAGNET[state.shapeId];
-    const rSlot = shape ? shape.magnetW / shape.magnetH : 1;
-
     state.files.forEach((file) => {
       if (file.uri !== state.selectedImageUri) {
         if (!state.crops[file.uri]) {
@@ -2210,8 +2208,11 @@ function setupListeners() {
         const targetCrop = state.crops[file.uri];
         targetCrop.scale = currentCrop.scale;
 
-        // Clamp offsets to this image's own pan range — its aspect ratio may
-        // differ from the source image, so the source's offsets may be out of bounds.
+        // Clamp offsets to this image's own pan range — its shape and aspect
+        // ratio may differ from the source image, so the source's offsets may
+        // be out of bounds.
+        const shape = MAGNET[state.fileShapes[file.uri] || state.shapeId];
+        const rSlot = shape ? shape.magnetW / shape.magnetH : 1;
         if (shape) {
           const rImg = targetCrop.aspectRatio;
           let wBase, hBase;
@@ -2341,8 +2342,8 @@ function setupListeners() {
     if (!isDragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    
-    const shape = MAGNET[state.shapeId];
+
+    const shape = MAGNET[state.fileShapes[state.selectedImageUri] || state.shapeId];
     if (!shape) return;
 
     const maxWorkspaceDim = getCropMaxDim();
