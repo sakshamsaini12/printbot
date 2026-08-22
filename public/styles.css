@@ -88,7 +88,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-html { scroll-behavior: auto; }
+html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
@@ -100,7 +100,9 @@ body {
   scrollbar-gutter: stable;
   font-size: 14px;
   line-height: 1.5;
-  /* No full-page GPU layer — wastes VRAM and causes repaint cascade */
+  /* GPU compositing layer for smoother animations */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 /* ─────────────────────────────────────────────
@@ -191,6 +193,7 @@ button {
     color var(--t-fast) ease,
     border-color var(--t-fast) ease,
     opacity var(--t-fast) ease;
+  will-change: transform;
   white-space: nowrap;
 }
 
@@ -329,6 +332,7 @@ button:active { transform: scale(0.96) translateY(0); transition-duration: 0.05s
     transform var(--t-mid) var(--ease),
     border-color var(--t-mid) var(--ease),
     box-shadow var(--t-mid) var(--ease);
+  will-change: transform;
 }
 
 .preset-card:hover {
@@ -716,6 +720,7 @@ button:active { transform: scale(0.96) translateY(0); transition-duration: 0.05s
   gap: 8px;
   text-align: left;
   color: var(--text);
+  will-change: transform;
   width: 100%;
   min-width: 0;
   overflow: hidden;
@@ -1281,12 +1286,8 @@ button:active { transform: scale(0.96) translateY(0); transition-duration: 0.05s
   background-image: none;
   scrollbar-width: thin;
   scrollbar-color: rgba(0,0,0,0.18) transparent;
-  /* Own compositor layer so scroll never blocks main thread */
   transform: translateZ(0);
-  will-change: scroll-position;
   overscroll-behavior: contain;
-  /* Hand touch-scroll directly to compositor */
-  touch-action: pan-y;
 }
 .preview-scroll-area::-webkit-scrollbar { width: 6px; }
 .preview-scroll-area::-webkit-scrollbar-track { background: transparent; }
@@ -1863,67 +1864,6 @@ dialog::backdrop {
 .footer-link:hover .instagram-icon { transform: rotate(10deg) scale(1.1); }
 
 /* ─────────────────────────────────────────────
-   CUSTOM CURSOR
-   ───────────────────────────────────────────── */
-.custom-cursor-dot-wrapper,
-.custom-cursor-ring-wrapper {
-  position: fixed;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  /* Keep below native dialog z-index (browser dialogs sit at ~2147483647)
-     but high enough to be above all page content */
-  z-index: 9999;
-  opacity: 0;
-  transition: opacity 0.3s var(--ease);
-  will-change: transform;
-}
-
-/* When a dialog is open, hide cursors so they don't cover the modal */
-body:has(dialog[open]) .custom-cursor-dot-wrapper,
-body:has(dialog[open]) .custom-cursor-ring-wrapper {
-  opacity: 0 !important;
-}
-
-.custom-cursor-dot {
-  width: 28px;
-  height: 28px;
-  background-image: url('assets/shopship_logo.jpg');
-  background-size: cover;
-  background-position: center;
-  border-radius: 50%;
-  border: 1.5px solid var(--teal);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.22);
-  transform: translate(-50%, -50%) scale(1);
-  transition: transform 0.18s var(--ease), border-color 0.18s ease;
-}
-
-.custom-cursor-ring {
-  width: 46px;
-  height: 46px;
-  border: 1.5px solid rgba(var(--accent-rgb), 0.5);
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(1);
-  transition: transform 0.22s var(--ease), border-color 0.2s ease, background-color 0.2s ease;
-}
-
-.custom-cursor-dot.hovered {
-  transform: translate(-50%, -50%) scale(1.25);
-  border-color: var(--accent);
-}
-.custom-cursor-ring.hovered {
-  transform: translate(-50%, -50%) scale(1.45);
-  border-color: var(--accent);
-  background-color: rgba(var(--accent-rgb), 0.05);
-}
-
-body.custom-cursor-enabled,
-body.custom-cursor-enabled *,
-body.custom-cursor-enabled dialog::backdrop {
-  cursor: none !important;
-}
-
-/* ─────────────────────────────────────────────
    ANIMATIONS & KEYFRAMES
    ───────────────────────────────────────────── */
 
@@ -2086,12 +2026,8 @@ header { animation: fadeDown 0.30s 0.06s cubic-bezier(0.16,1,0.3,1) both; }
     transparent 65%
   );
   background-size: 200% 100%;
-  /* Only animate on hover — stops 60fps paint when idle */
-  animation: none;
+  animation: shimmerSlide 2.4s cubic-bezier(0.4,0,0.6,1) infinite;
   pointer-events: none;
-}
-.shimmer-btn:hover::after {
-  animation: shimmerSlide 1.8s cubic-bezier(0.4,0,0.6,1) infinite;
 }
 .shimmer-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,58,237,0.35); }
 .shimmer-btn:active { transform: scale(0.97); }
@@ -2127,10 +2063,6 @@ header { animation: fadeDown 0.30s 0.06s cubic-bezier(0.16,1,0.3,1) both; }
 /* ── Preview page block entrance (staggered by JS) ── */
 .page-enter {
   animation: pageIn 0.45s cubic-bezier(0.16,1,0.3,1) both;
-  /* Skip rendering off-screen pages — critical for scroll performance with large SVGs */
-  content-visibility: auto;
-  /* Hint to browser: each A4 page is roughly this tall so layout stays stable */
-  contain-intrinsic-size: 0 860px;
 }
 
 /* ── Tab active state — pill highlight only, no underline ── */
@@ -2148,8 +2080,8 @@ header { animation: fadeDown 0.30s 0.06s cubic-bezier(0.16,1,0.3,1) both; }
   transform: translateY(3px);
 }
 
-/* ── Empty state float — only when visible ── */
-#empty-state:not([style*="display: none"]):not([style*="display:none"]) .material-symbols-outlined {
+/* ── Empty state float ── */
+#empty-state .material-symbols-outlined {
   animation: float 3s ease-in-out infinite;
 }
 
@@ -2208,6 +2140,100 @@ dialog::backdrop { animation: fadeIn 0.22s ease both; }
   .topbar-actions .ghost { display: none; }
   .dashboard-view { padding: 28px 16px 60px; }
   .hero-section h1 { font-size: 26px; }
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE-FIRST DASHBOARD + EDITOR
+   ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+  body { overflow-x: hidden; }
+
+  #dashboard-view { padding: 16px 12px 40px !important; }
+  #dashboard-view > .max-w-6xl { gap: 24px !important; }
+  #dashboard-view > .max-w-6xl > .flex:first-child {
+    align-items: flex-start !important;
+    gap: 14px;
+    padding: 10px 0 18px !important;
+    flex-wrap: wrap;
+  }
+  #dashboard-view .brand-logo { width: 42px !important; height: 42px !important; }
+  #dashboard-view h1 { font-size: 24px !important; line-height: 1.1; }
+  #dashboard-view .flex:first-child > .flex:last-child {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  #dashboard-view .flex:first-child > .flex:last-child a,
+  #dashboard-view .flex:first-child > .flex:last-child button {
+    flex: 1;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  #license-status-card > .relative {
+    padding: 18px !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+  }
+  #license-status-card > .relative > .flex:first-child {
+    gap: 14px;
+    min-width: 0;
+  }
+  #license-status-card > .relative > .flex:first-child > div:last-child { min-width: 0; }
+  #license-status-text { font-size: 20px !important; overflow-wrap: anywhere; }
+  #btn-activate-dashboard { width: 100%; justify-content: center; margin-left: 0 !important; }
+
+  #dashboard-view .grid.grid-cols-2 { grid-template-columns: 1fr 1fr; gap: 10px !important; }
+  #dashboard-view .preset-card { min-height: 136px; padding: 16px 8px !important; gap: 8px; }
+  #dashboard-view .recent-designs-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+
+  #editor-view[style*="display: flex"] {
+    display: flex !important;
+    flex-direction: column;
+    height: auto !important;
+    min-height: 100dvh;
+    overflow: visible !important;
+  }
+  /* Mobile workflow: live preview first, controls below it. */
+  #editor-view[style*="display: flex"] > main { order: 1; }
+  #editor-view[style*="display: flex"] > aside { order: 2; }
+  #editor-view[style*="display: flex"] > aside {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  #editor-view[style*="display: flex"] > aside > .flex-1 { overflow: visible !important; padding: 14px !important; }
+  #editor-view[style*="display: flex"] > aside > .p-6.border-b { display: none !important; }
+  #editor-view[style*="display: flex"] > aside .p-6 { padding: 14px !important; }
+  #editor-view[style*="display: flex"] > aside .step-card { padding: 12px !important; }
+  #editor-view[style*="display: flex"] > main {
+    display: flex !important;
+    position: relative;
+    width: 100%;
+    min-height: 520px;
+    margin-left: 0 !important;
+    overflow: visible !important;
+  }
+  #editor-view[style*="display: flex"] > main > header {
+    height: auto !important;
+    min-height: 56px;
+    padding: 10px 12px !important;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  #editor-view[style*="display: flex"] > main > header > div:first-child { min-width: 0; }
+  #editor-view[style*="display: flex"] #btn-back-dashboard { padding: 7px 9px; }
+  #editor-view[style*="display: flex"] #preview-header-actions { width: 100%; justify-content: space-between; gap: 6px; }
+  #editor-view[style*="display: flex"] .preview-tab { padding: 9px 10px !important; font-size: 11px; }
+  #preview-stage { min-height: 430px !important; overflow: visible !important; }
+  #stage-a4, #stage-crop { min-height: 430px; }
+  #preview-scroll-area { padding: 14px !important; }
+  #crop-canvas-wrapper { min-height: 320px; padding: 12px !important; }
+  #crop-interactive-area { width: min(82vw, 360px) !important; height: min(82vw, 360px) !important; }
 }
 
 /* ─────────────────────────────────────────────
@@ -2424,16 +2450,15 @@ dialog::backdrop { animation: fadeIn 0.22s ease both; }
   perspective: 1000px;
 }
 
-/* Only promote compositing layer on the crop image and cursor — not everything */
-.crop-interactive-area {
-  contain: layout style;
-}
-
-/* Smooth cursor animations */
-#cursor-dot,
-#cursor-ring {
-  pointer-events: none;
-  will-change: transform;
+/* Interactive elements: GPU acceleration for hover/drag states */
+.shape-card,
+.crop-interactive-area,
+.doc-thumbnail,
+.doc-card,
+button,
+input[type="range"],
+[role="button"] {
+  transform: translateZ(0);
   backface-visibility: hidden;
 }
 

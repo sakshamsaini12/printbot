@@ -32,6 +32,7 @@ for (const file of [".env.local", ".env"]) {
 }
 
 const app = express();
+app.disable("x-powered-by");
 app.use(express.json({ limit: "50kb" })); // cap body size
 
 // ── Security headers ─────────────────────────────────────────────────────────
@@ -41,10 +42,14 @@ app.use((req, res, next) => {
   res.setHeader("X-XSS-Protection",        "1; mode=block");
   res.setHeader("Referrer-Policy",         "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy",      "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  if (IS_PROD) res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  const scriptPolicy = req.path === "/keygen.html" ? "'self' 'unsafe-inline'" : "'self'";
   res.setHeader("Content-Security-Policy",
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; " +
+    `script-src ${scriptPolicy}; ` +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src https://fonts.gstatic.com; " +
     "img-src 'self' data: blob:; " +
     "connect-src 'self';"
@@ -52,31 +57,48 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── CORS — restrict admin endpoints to same origin ───────────────────────────
+// ── Same-origin protection ───────────────────────────────────────────────────
 app.use((req, res, next) => {
-  if (req.path.startsWith("/api/admin")) {
-    // Admin: only allow same-origin (no CORS header → browser blocks cross-origin)
-    return next();
-  }
-  // Public API: allow same-origin only (no wildcard)
   const origin = req.headers.origin;
   if (origin) {
     const host = req.headers.host;
     const allowedOrigin = `${req.protocol}://${host}`;
-    if (origin === allowedOrigin) res.setHeader("Access-Control-Allow-Origin", origin);
+    if (origin !== allowedOrigin) {
+      return res.status(403).json({ ok: false, error: "Cross-origin request blocked." });
+    }
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
   }
   if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  setHeaders(res, filePath) {
+    if (/\.(?:png|jpe?g|webp|woff2?)$/i.test(filePath)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (/\.(?:js|css)$/i.test(filePath)) {
+      res.setHeader("Cache-Control", "public, max-age=86400");
+    }
+  },
+}));
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const SECRET     = process.env.PB_SECRET || "pb-shopship-2024-change-in-prod-XzK9m";
-const ADMIN_PASS = process.env.PB_ADMIN  || "shopship@admin";
+const IS_PROD    = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+if (IS_PROD && (!process.env.PB_SECRET || !process.env.PB_ADMIN)) {
+  throw new Error("PB_SECRET and PB_ADMIN are required in production.");
+}
+const SECRET     = process.env.PB_SECRET || crypto.randomBytes(32).toString("hex");
+const ADMIN_PASS = process.env.PB_ADMIN || "";
 const DEMO_LIMIT = 5;
 const PORT       = process.env.PORT || 3131;
-const DB_FILE    = "/tmp/pb_keys.json";
+const DB_FILE    = process.env.PB_DB_FILE || path.join(__dirname, ".data", "pb_keys.json");
+const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 60 * 1000;
+
+if (process.env.VERCEL && !process.env.PB_DB_FILE) {
+  console.warn("PB_DB_FILE is not configured. Connect persistent storage before production use.");
+}
 
 // ── DB helpers ───────────────────────────────────────────────────────────────
 function loadDB() {
@@ -94,7 +116,12 @@ function loadDB() {
 }
 
 function saveDB(db) {
-  try { fs.writeFileSync(DB_FILE, JSON.stringify(db), "utf8"); }
+  try {
+    fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
+    const tempFile = `${DB_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(db), { encoding: "utf8", mode: 0o600 });
+    fs.renameSync(tempFile, DB_FILE);
+  }
   catch (e) { console.error("saveDB:", e.message); }
 }
 
@@ -105,8 +132,15 @@ function ensureDemos(db) {
 
 // ── Rate limiter ─────────────────────────────────────────────────────────────
 const rateMap = new Map();
+let lastRateCleanup = 0;
 function rateLimit(key, maxHits, windowMs = 60_000) {
   const now   = Date.now();
+  if (now - lastRateCleanup > 60_000) {
+    for (const [entryKey, value] of rateMap) {
+      if (now > value.reset) rateMap.delete(entryKey);
+    }
+    lastRateCleanup = now;
+  }
   const entry = rateMap.get(key) || { count: 0, reset: now + windowMs };
   if (now > entry.reset) { entry.count = 0; entry.reset = now + windowMs; }
   entry.count++;
@@ -115,9 +149,10 @@ function rateLimit(key, maxHits, windowMs = 60_000) {
 }
 
 function getIp(req) {
-  return (req.headers["x-forwarded-for"] || "").split(",")[0].trim()
-      || req.socket?.remoteAddress
-      || "unknown";
+  if (process.env.VERCEL && req.headers["x-vercel-forwarded-for"]) {
+    return String(req.headers["x-vercel-forwarded-for"]).split(",")[0].trim();
+  }
+  return req.socket?.remoteAddress || "unknown";
 }
 
 // ── Input sanitization helpers ────────────────────────────────────────────────
@@ -159,24 +194,79 @@ function isValidKeyFormat(key) {
   const p = parseKey(key);
   return p ? keyChecksum(p.serial) === p.checksum : false;
 }
+function signValue(value) {
+  return crypto.createHmac("sha256", SECRET).update(value).digest("base64url");
+}
 function makeToken(key, deviceId) {
-  return crypto.createHmac("sha256", SECRET)
-    .update("TOKEN:" + key + ":" + deviceId).digest("hex");
+  const payload = Buffer.from(JSON.stringify({ key, deviceId, iat: Date.now(), exp: Date.now() + TOKEN_TTL_MS }))
+    .toString("base64url");
+  return `${payload}.${signValue(payload)}`;
+}
+function parseToken(token) {
+  if (typeof token !== "string" || token.length > 1024) return null;
+  const [payload, signature] = token.split(".");
+  if (!payload || !signature) return null;
+  const expected = signValue(payload);
+  const a = Buffer.from(signature), b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (!data.exp || data.exp < Date.now()) return null;
+    return data;
+  } catch { return null; }
 }
 
-// ── Admin middleware — rate-limited ──────────────────────────────────────────
+// ── Admin sessions — HttpOnly cookie + CSRF token ────────────────────────────
+const adminSessions = new Map();
+function parseCookies(req) {
+  return Object.fromEntries(String(req.headers.cookie || "").split(";").map(v => v.trim()).filter(Boolean).map(v => {
+    const i = v.indexOf("=");
+    return [decodeURIComponent(v.slice(0, i)), decodeURIComponent(v.slice(i + 1))];
+  }));
+}
+function safeEqualText(a, b) {
+  const aa = Buffer.from(String(a)), bb = Buffer.from(String(b));
+  return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
+}
 function requireAdmin(req, res, next) {
   const ip = getIp(req);
-  // 5 failed attempts per IP per minute before lockout
-  if (rateLimit(ip + ":admin", 10, 60_000)) {
-    return res.status(429).json({ ok: false, error: "Too many attempts. Wait a minute." });
+  const now = Date.now();
+  for (const [sessionId, value] of adminSessions) {
+    if (value.expires < now) adminSessions.delete(sessionId);
   }
-  const pass = req.body?.password || req.headers["x-admin-password"];
-  if (typeof pass !== "string" || pass !== ADMIN_PASS) {
-    return res.status(403).json({ ok: false, error: "Invalid admin password." });
+  if (rateLimit(ip + ":admin-api", 120, 60_000)) return res.status(429).json({ ok: false, error: "Too many requests." });
+  const sid = parseCookies(req).pb_admin_session;
+  const session = sid && adminSessions.get(sid);
+  if (!session || session.expires < now) {
+    if (sid) adminSessions.delete(sid);
+    return res.status(401).json({ ok: false, error: "Authentication required." });
   }
+  if (!safeEqualText(req.headers["x-csrf-token"] || "", session.csrf)) {
+    return res.status(403).json({ ok: false, error: "Invalid CSRF token." });
+  }
+  session.expires = now + SESSION_TTL_MS;
   next();
 }
+
+app.post("/api/admin/login", (req, res) => {
+  const ip = getIp(req);
+  if (rateLimit(ip + ":admin-login", 8, 10 * 60_000)) return res.status(429).json({ ok: false, error: "Too many attempts." });
+  if (!ADMIN_PASS || !safeEqualText(req.body?.password || "", ADMIN_PASS)) {
+    return res.status(403).json({ ok: false, error: "Invalid admin password." });
+  }
+  const sid = crypto.randomBytes(32).toString("base64url");
+  const csrf = crypto.randomBytes(24).toString("base64url");
+  adminSessions.set(sid, { csrf, expires: Date.now() + SESSION_TTL_MS });
+  res.setHeader("Set-Cookie", `pb_admin_session=${encodeURIComponent(sid)}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=${SESSION_TTL_MS / 1000}${IS_PROD ? "; Secure" : ""}`);
+  return res.json({ ok: true, csrf });
+});
+
+app.post("/api/admin/logout", requireAdmin, (req, res) => {
+  const sid = parseCookies(req).pb_admin_session;
+  if (sid) adminSessions.delete(sid);
+  res.setHeader("Set-Cookie", `pb_admin_session=; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=0${IS_PROD ? "; Secure" : ""}`);
+  return res.json({ ok: true });
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 //  PUBLIC API
@@ -185,8 +275,10 @@ function requireAdmin(req, res, next) {
 /** POST /api/demo/check — how many demo uploads remain for this IP */
 app.post("/api/demo/check", (req, res) => {
   const ip  = getIp(req);
+  const deviceId = sanitizeDeviceId(req.body?.deviceId || "");
+  const demoKey = deviceId ? `${ip}:${deviceId}` : ip;
   const db  = ensureDemos(loadDB());
-  const used      = db.demos[ip] || 0;
+  const used      = db.demos[demoKey] || 0;
   const remaining = Math.max(0, DEMO_LIMIT - used);
   return res.json({ ok: true, used, remaining, limit: DEMO_LIMIT });
 });
@@ -198,15 +290,18 @@ app.post("/api/demo/use", (req, res) => {
     return res.status(429).json({ ok: false, remaining: 0, msg: "Too many requests." });
   }
   const count = Math.min(parseInt(req.body?.count) || 1, 5);
+  const deviceId = sanitizeDeviceId(req.body?.deviceId || "");
+  if (!deviceId) return res.status(400).json({ ok: false, remaining: 0, msg: "Missing device ID." });
+  const demoKey = `${ip}:${deviceId}`;
   const db    = ensureDemos(loadDB());
-  const used  = db.demos[ip] || 0;
+  const used  = db.demos[demoKey] || 0;
   if (used >= DEMO_LIMIT) {
     return res.json({ ok: false, remaining: 0, msg: "Demo limit reached." });
   }
   const canUse     = Math.min(count, DEMO_LIMIT - used);
-  db.demos[ip]     = used + canUse;
+  db.demos[demoKey] = used + canUse;
   saveDB(db);
-  const remaining  = Math.max(0, DEMO_LIMIT - db.demos[ip]);
+  const remaining  = Math.max(0, DEMO_LIMIT - db.demos[demoKey]);
   return res.json({ ok: true, used: canUse, remaining });
 });
 
@@ -240,17 +335,14 @@ app.post("/api/activate", (req, res) => {
 app.post("/api/verify", (req, res) => {
   const key      = sanitizeKey(req.body?.key || "");
   const deviceId = sanitizeDeviceId(req.body?.deviceId || "");
-  const token    = typeof req.body?.token === "string" ? req.body.token.replace(/[^a-f0-9]/g, "").slice(0,64) : "";
+  const token    = typeof req.body?.token === "string" ? req.body.token.trim().slice(0,1024) : "";
   if (!key || !deviceId || !token) return res.json({ ok: false });
 
   const db     = loadDB();
   const record = db.keys[key];
   if (!record || !record.active || record.deviceId !== deviceId) return res.json({ ok: false });
-  try {
-    const expected = makeToken(key, deviceId);
-    const a = Buffer.from(token, "hex"), b = Buffer.from(expected, "hex");
-    return res.json({ ok: a.length === b.length && crypto.timingSafeEqual(a, b) });
-  } catch { return res.json({ ok: false }); }
+  const payload = parseToken(token);
+  return res.json({ ok: Boolean(payload && payload.key === key && payload.deviceId === deviceId) });
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -331,5 +423,5 @@ app.get("/server.js",     (_, res) => res.status(403).send("Forbidden"));
 app.listen(PORT, () => {
   console.log(`\n  ✅  PrintBot: http://localhost:${PORT}`);
   console.log(`  🔑  Admin: http://localhost:${PORT}/keygen.html`);
-  console.log(`  🔒  Admin pass: ${ADMIN_PASS}\n`);
+  console.log("  🔒  Admin authentication enabled\n");
 });

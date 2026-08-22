@@ -231,7 +231,7 @@
 <div id="toast" class="toast"></div>
 
 <script>
-let _pass   = "";
+let _csrf   = "";
 let _keys   = [];   // full list from server
 let _filter = "all";
 let _search = "";
@@ -250,8 +250,9 @@ function toast(msg, type = "") {
 async function api(url, body = {}) {
   const r = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: _pass, ...body }),
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": _csrf },
+    body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
@@ -264,10 +265,17 @@ async function tryLogin() {
   const errEl = document.getElementById("login-err");
   errEl.style.display = "none";
   try {
-    const d = await api("/api/admin/list", { password: pw }).catch(() => null);
-    if (!d || !d.ok) { errEl.style.display = "block"; return; }
-    _pass = pw;
-    sessionStorage.setItem(SESS, pw);
+    const loginResponse = await fetch("/api/admin/login", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    const login = await loginResponse.json().catch(() => null);
+    if (!loginResponse.ok || !login?.ok) { errEl.style.display = "block"; return; }
+    _csrf = login.csrf;
+    sessionStorage.setItem(SESS, _csrf);
+    const d = await api("/api/admin/list");
     document.getElementById("login-screen").style.display = "none";
     const app = document.getElementById("admin-app");
     app.style.display = "flex";
@@ -276,8 +284,9 @@ async function tryLogin() {
   } catch { errEl.textContent = "Server unreachable."; errEl.style.display = "block"; }
 }
 
-function logout() {
-  _pass = ""; sessionStorage.removeItem(SESS);
+async function logout() {
+  try { await api("/api/admin/logout"); } catch {}
+  _csrf = ""; sessionStorage.removeItem(SESS);
   document.getElementById("login-screen").style.display = "flex";
   document.getElementById("admin-app").style.display = "none";
   document.getElementById("pw").value = "";
@@ -490,7 +499,7 @@ document.querySelectorAll(".fpill").forEach(b => b.addEventListener("click", fun
 (async () => {
   const saved = sessionStorage.getItem(SESS);
   if (!saved) return;
-  _pass = saved;
+  _csrf = saved;
   try {
     const d = await api("/api/admin/list");
     if (d.ok) {
@@ -499,8 +508,8 @@ document.querySelectorAll(".fpill").forEach(b => b.addEventListener("click", fun
       app.style.display = "flex";
       _keys = d.keys || [];
       renderAll();
-    } else { sessionStorage.removeItem(SESS); _pass = ""; }
-  } catch { sessionStorage.removeItem(SESS); _pass = ""; }
+    } else { sessionStorage.removeItem(SESS); _csrf = ""; }
+  } catch { sessionStorage.removeItem(SESS); _csrf = ""; }
 })();
 </script>
 </body>

@@ -61,14 +61,7 @@ const LICENSE = (() => {
       });
       data = await res.json();
     } catch {
-      // If server unreachable but we have a cached valid token, allow offline access
-      // Only grant offline grace if the token exists and is recent (within last 30 days)
-      const activatedAt = stored.activatedAt || Date.now();
-      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-      if (activatedAt > thirtyDaysAgo) {
-        return true; // Offline grace: recent activation, trust the cached token
-      }
-      return false; // License too old, require server verification
+      return false;
     }
     if (!data.ok) {
       // Key revoked — clear stored license
@@ -80,7 +73,29 @@ const LICENSE = (() => {
 
   // ── Demo counter ─────────────────────────────────────────
   function getDemoCount()  { return parseInt(localStorage.getItem(LS_UPLOADS) || "0", 10); }
-  function incrementDemo() { const n = getDemoCount()+1; localStorage.setItem(LS_UPLOADS, n); return n; }
+  function setDemoCount(n) { localStorage.setItem(LS_UPLOADS, String(Math.max(0, Math.min(DEMO_LIMIT, n)))); }
+  async function syncDemo() {
+    try {
+      const res = await fetch("/api/demo/check", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: getDeviceId() }),
+      });
+      const data = await res.json();
+      if (data.ok) setDemoCount(data.used);
+      return data;
+    } catch { return null; }
+  }
+  async function consumeDemo(count) {
+    try {
+      const res = await fetch("/api/demo/use", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: getDeviceId(), count }),
+      });
+      const data = await res.json();
+      if (typeof data.remaining === "number") setDemoCount(DEMO_LIMIT - data.remaining);
+      return data;
+    } catch { return { ok: false, msg: "Cannot reach the license server." }; }
+  }
   function isDemo()        { return getDemoCount() < DEMO_LIMIT; }
   function demoRemaining() { return Math.max(0, DEMO_LIMIT - getDemoCount()); }
 
@@ -89,13 +104,14 @@ const LICENSE = (() => {
 
   async function init() {
     _active = await verify();
+    if (!_active) await syncDemo();
     return _active;
   }
   function isActive()    { return _active; }
   function setActive(v)  { _active = v; }
 
-  return { init, isActive, setActive, activate,
-           getDemoCount, incrementDemo, isDemo, demoRemaining, DEMO_LIMIT };
+  return { init, isActive, setActive, activate, consumeDemo,
+           getDemoCount, isDemo, demoRemaining, DEMO_LIMIT };
 })();
 
 const A4 = {
@@ -141,45 +157,6 @@ const MAGNET = {
     safeMarginPx: 24,
     margin: 80,
     type: "rectangle",
-  },
-  heart: {
-    id: "heart",
-    label: "60 mm Heart",
-    subtitle: "60 mm · 12 per page",
-    magnetW: 709,
-    magnetH: 709,
-    slotW: 815,
-    slotH: 815,
-    borderRadius: 407,
-    margin: 15,
-    type: "path",
-    path: "M 354.5 120 C 250 0 100 100 100 250 C 100 400 300 550 354.5 609 C 409 550 609 400 609 250 C 609 100 459 0 354.5 120 Z",
-  },
-  hexagon: {
-    id: "hexagon",
-    label: "60 mm Hexagon",
-    subtitle: "60 mm · 12 per page",
-    magnetW: 709,
-    magnetH: 709,
-    slotW: 815,
-    slotH: 815,
-    borderRadius: 407,
-    margin: 15,
-    type: "path",
-    path: "M 354.5 0 L 709 177.25 L 709 531.75 L 354.5 709 L 0 531.75 L 0 177.25 Z",
-  },
-  star: {
-    id: "star",
-    label: "60 mm Star",
-    subtitle: "60 mm · 12 per page",
-    magnetW: 709,
-    magnetH: 709,
-    slotW: 815,
-    slotH: 815,
-    borderRadius: 407,
-    margin: 15,
-    type: "path",
-    path: "M 354.5 0 L 464.3 222.5 L 709 258.1 L 531.8 430.8 L 573.6 674.6 L 354.5 559.4 L 135.4 674.6 L 177.2 430.8 L 0 258.1 L 244.7 222.5 Z",
   },
 };
 
@@ -240,7 +217,7 @@ const elements = {
   btnHelp: document.getElementById("btn-help"),
   btnCloseHelp: document.getElementById("btn-close-help"),
   helpDialog: document.getElementById("help-dialog"),
-  
+
   // Crop Editor Elements
   tabA4: document.getElementById("tab-a4"),
   tabCrop: document.getElementById("tab-crop"),
@@ -499,12 +476,6 @@ function createShapeButtons() {
         const customSizeDialog = document.getElementById("custom-size-dialog");
         if (customSizeDialog) {
           customSizeDialog.showModal();
-          const dotWrapper = document.getElementById("cursor-dot-wrapper");
-          const ringWrapper = document.getElementById("cursor-ring-wrapper");
-          if (dotWrapper && ringWrapper) {
-            customSizeDialog.appendChild(dotWrapper);
-            customSizeDialog.appendChild(ringWrapper);
-          }
         }
       });
       return;
@@ -586,41 +557,32 @@ async function loadFiles(fileList) {
     return;
   }
 
-  const files = Array.from(fileList);
+  const files = Array.from(fileList)
+    .filter(file => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 15 * 1024 * 1024)
+    .slice(0, 25);
   if (!files.length) return;
+  if (files.length !== fileList.length) setStatus("Some files were skipped. Use JPG, PNG, or WEBP under 15 MB.");
 
   // ── License / demo check ──────────────────────────────
   let filesToLoad = Array.from(files);  // Make a mutable copy
 
   if (!LICENSE.isActive()) {
-    const remaining = LICENSE.demoRemaining();
-    if (remaining <= 0) {
-      showActivationModal("You've used all 5 free demo uploads. Activate your license to continue.");
+    const demo = await LICENSE.consumeDemo(filesToLoad.length);
+    if (!demo?.ok) {
+      showActivationModal(demo?.msg || "Demo limit reached. Activate your license to continue.");
       return;
     }
-    // Count each file added toward the demo limit
-    const newCount = LICENSE.getDemoCount() + filesToLoad.length;
-    if (newCount > LICENSE.DEMO_LIMIT) {
-      const allowed = LICENSE.DEMO_LIMIT - LICENSE.getDemoCount();
-      if (allowed <= 0) {
-        showActivationModal("You've used all 5 free demo uploads. Activate your license to continue.");
-        return;
-      }
-      // Allow only up to the limit
-      filesToLoad = filesToLoad.slice(0, allowed);
-      setStatus(`Demo: only ${allowed} more file${allowed > 1 ? "s" : ""} allowed. Activate for unlimited.`);
-    }
-    // Increment demo counter by however many files we're actually loading
-    for (let i = 0; i < filesToLoad.length; i++) LICENSE.incrementDemo();
+    filesToLoad = filesToLoad.slice(0, demo.used);
     updateLicenseBadge();
   }
 
   setStatus("Loading images...");
   const loaded = await Promise.all(
     filesToLoad.map(async (file) => {
-      const uri = await readFileAsDataURL(file);
-      const dims = await getImageDimensions(uri);
-      
+      const prepared = await prepareImageFile(file);
+      const uri = prepared.uri;
+      const dims = { width: prepared.width, height: prepared.height };
+
       if (!state.crops[uri]) {
         state.crops[uri] = {
           scale: 1.0,
@@ -636,7 +598,7 @@ async function loadFiles(fileList) {
           preset: "original",
         };
       }
-      
+
       // Derive a friendly default name from the file's actual filename
       const rawName = file.name || "Image";
       const nameStem = rawName.replace(/\.[^.]+$/, ""); // strip extension
@@ -689,6 +651,35 @@ function readFileAsDataURL(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+async function prepareImageFile(file) {
+  const bitmap = await createImageBitmap(file);
+  const maxDimension = 4096;
+  const maxPixels = 16_000_000;
+  const scale = Math.min(
+    1,
+    maxDimension / bitmap.width,
+    maxDimension / bitmap.height,
+    Math.sqrt(maxPixels / (bitmap.width * bitmap.height))
+  );
+  if (scale >= 1) {
+    const width = bitmap.width;
+    const height = bitmap.height;
+    bitmap.close();
+    return { uri: await readFileAsDataURL(file), width, height };
+  }
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { alpha: file.type === "image/png" });
+  context.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+  const type = file.type === "image/png" ? "image/png" : "image/webp";
+  const blob = await new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("Image optimization failed")), type, 0.9));
+  return { uri: await readFileAsDataURL(blob), width, height };
 }
 
 // Rebuild state.items from state.files respecting qty and per-file shape
@@ -1050,6 +1041,13 @@ function escapeXml(text) {
     .replace(/'/g, "&#39;");
 }
 
+function safeImageUri(uri) {
+  const value = String(uri || "");
+  if (/^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=\s]+$/i.test(value)) return value;
+  if (/^(?:assets\/|\/assets\/)[a-z0-9._\/-]+$/i.test(value)) return value;
+  return "";
+}
+
 function updateStats() {
   elements.statCount.textContent = state.items.length;
   elements.statPages.textContent = state.pages.length;
@@ -1205,7 +1203,7 @@ function updateCropImageStyleOnly() {
   const crop = state.crops[state.selectedImageUri];
   const shape = MAGNET[state.shapeId];
   if (!shape) return;
-  
+
   const maxWorkspaceDim = 360;
   let editorW, editorH;
   if (shape.slotW > shape.slotH) {
@@ -1257,7 +1255,7 @@ function updateCropUI() {
   const crop = state.crops[state.selectedImageUri];
   const shape = MAGNET[state.shapeId];
   if (!shape) return;
-  
+
   const maxWorkspaceDim = 360;
   let editorW, editorH;
   if (shape.slotW > shape.slotH) {
@@ -1365,14 +1363,14 @@ function updateGuidelinesSvg(shape) {
   if (shape.id === "circle") {
     const rCut = mw / 2;
     const rSafe = rCut - 24;
-    
+
     maskPath = `<circle cx="${cx}" cy="${cy}" r="${rCut}" fill="black" />`;
     cutPath = `<circle cx="${cx}" cy="${cy}" r="${rCut}" stroke="#10b981" stroke-width="3.5" fill="none" />`;
     safePath = `<circle cx="${cx}" cy="${cy}" r="${rSafe}" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="8,6" fill="none" />`;
   } else if (shape.id === "square") {
     const br = shape.borderRadius || 0;
     const brSafe = Math.max(0, br - 24);
-    
+
     maskPath = `<rect x="${xCut}" y="${yCut}" width="${mw}" height="${mh}" rx="${br}" ry="${br}" fill="black" />`;
     cutPath = `<rect x="${xCut}" y="${yCut}" width="${mw}" height="${mh}" rx="${br}" ry="${br}" stroke="#10b981" stroke-width="3.5" fill="none" />`;
     safePath = `<rect x="${xCut + 24}" y="${yCut + 24}" width="${mw - 48}" height="${mh - 48}" rx="${brSafe}" ry="${brSafe}" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="8,6" fill="none" />`;
@@ -1385,7 +1383,7 @@ function updateGuidelinesSvg(shape) {
   } else {
     const br = shape.borderRadius || 0;
     const brSafe = Math.max(0, br - 24);
-    
+
     maskPath = `<rect x="${xCut}" y="${yCut}" width="${mw}" height="${mh}" rx="${br}" ry="${br}" fill="black" />`;
     cutPath = `<rect x="${xCut}" y="${yCut}" width="${mw}" height="${mh}" rx="${br}" ry="${br}" stroke="#10b981" stroke-width="3.5" fill="none" />`;
     safePath = `<rect x="${xCut + 24}" y="${yCut + 24}" width="${mw - 48}" height="${mh - 48}" rx="${brSafe}" ry="${brSafe}" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="8,6" fill="none" />`;
@@ -1398,15 +1396,15 @@ function updateGuidelinesSvg(shape) {
         ${maskPath}
       </mask>
     </defs>
-    
+
     <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(9, 9, 11, 0.75)" mask="url(#editor-crop-mask)" />
-    
+
     <rect x="2" y="2" width="${w - 4}" height="${h - 4}" stroke="rgba(239, 68, 68, 0.35)" stroke-width="2.5" stroke-dasharray="8,6" fill="none" />
     <text x="14" y="26" fill="rgba(239, 68, 68, 0.85)" font-size="16" font-family="Space Mono, monospace" font-weight="700">BLEED ZONE</text>
-    
+
     ${cutPath}
     <text x="${xCut + 14}" y="${yCut - 10}" fill="#10b981" font-size="16" font-family="Space Mono, monospace" font-weight="700">CUT LINE</text>
-    
+
     ${safePath}
     <text x="${xCut + 34}" y="${yCut + 42}" fill="#6366f1" font-size="16" font-family="Space Mono, monospace" font-weight="700">SAFE AREA</text>
   `;
@@ -1478,7 +1476,7 @@ function updateActiveCropQueueThumb() {
   if (!state.selectedImageUri) return;
   const queueGrid = elements.cropQueueGrid;
   if (!queueGrid) return;
-  
+
   // Find the thumb container that represents the active image by looking for the active class
   const activeThumbEl = queueGrid.querySelector(`.crop-queue-thumb.active`);
   if (activeThumbEl) {
@@ -1541,10 +1539,10 @@ function renderCropQueue() {
     const isActive = item.uri === state.selectedImageUri;
     const thumbContainer = document.createElement("div");
     thumbContainer.className = `crop-queue-thumb ${isActive ? "active" : ""}`;
-    
+
     const crop = state.crops[item.uri] || { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 };
     const thumbSvg = createThumbSvg(item, crop);
-    
+
     thumbContainer.innerHTML = `
       <div class="thumb-wrapper">
         ${thumbSvg}
@@ -1620,6 +1618,8 @@ function renderImageQueue() {
 
   state.files.forEach(file => {
     const uri = file.uri;
+    const safeUri = safeImageUri(uri);
+    if (!safeUri) return;
     const name = state.fileNames[uri] || file.name || "Image";
     const qty = state.fileQtys[uri] || 1;
     const shape = state.fileShapes[uri] || state.shapeId || "circle";
@@ -1629,7 +1629,7 @@ function renderImageQueue() {
     item.dataset.uri = uri;
 
     const shapeChips = shapeOptions.map(s => `
-      <button class="iq-shape-chip ${shape === s.id ? 'active' : ''}" data-uri="${uri}" data-shape="${s.id}" title="${s.label} magnet">
+      <button class="iq-shape-chip ${shape === s.id ? 'active' : ''}" data-shape="${s.id}" title="${escapeXml(s.label)} magnet">
         <span class="iq-chip-icon">${s.icon}</span>
         <span class="iq-chip-label">${s.label}</span>
       </button>
@@ -1637,7 +1637,7 @@ function renderImageQueue() {
 
     item.innerHTML = `
       <div class="iq-thumb">
-        <img src="${uri}" alt="${escapeXml(name)}" loading="lazy" />
+        <img src="${escapeXml(safeUri)}" alt="${escapeXml(name)}" loading="lazy" decoding="async" />
       </div>
         <div class="iq-info">
           <input
@@ -1646,19 +1646,18 @@ function renderImageQueue() {
             value="${escapeXml(name)}"
             maxlength="40"
             title="Click to rename"
-            data-uri="${uri}"
           />
           <div class="iq-shape-chips" title="Shape for this image">${shapeChips}</div>
           <div class="iq-controls">
             <span class="iq-qty-label">Copies:</span>
             <div class="iq-qty-stepper">
-              <button class="iq-qty-btn iq-qty-minus" data-uri="${uri}" title="Decrease">−</button>
-              <span class="iq-qty-value" id="qty-val-${CSS.escape(uri)}">${qty}</span>
-              <button class="iq-qty-btn iq-qty-plus" data-uri="${uri}" title="Increase">+</button>
+              <button class="iq-qty-btn iq-qty-minus" title="Decrease">−</button>
+              <span class="iq-qty-value">${qty}</span>
+              <button class="iq-qty-btn iq-qty-plus" title="Increase">+</button>
             </div>
           </div>
         </div>
-      <button class="iq-delete-btn" data-uri="${uri}" title="Remove image">×</button>
+      <button class="iq-delete-btn" title="Remove image">×</button>
     `;
 
     // Name rename
@@ -1677,7 +1676,7 @@ function renderImageQueue() {
       const cur = state.fileQtys[uri] || 1;
       if (cur <= 1) return;
       state.fileQtys[uri] = cur - 1;
-      const valEl = document.getElementById(`qty-val-${CSS.escape(uri)}`);
+      const valEl = item.querySelector(".iq-qty-value");
       if (valEl) valEl.textContent = state.fileQtys[uri];
       rebuildItems();
       updateStats();
@@ -1691,7 +1690,7 @@ function renderImageQueue() {
       const cur = state.fileQtys[uri] || 1;
       if (cur >= 99) return;
       state.fileQtys[uri] = cur + 1;
-      const valEl = document.getElementById(`qty-val-${CSS.escape(uri)}`);
+      const valEl = item.querySelector(".iq-qty-value");
       if (valEl) valEl.textContent = state.fileQtys[uri];
       rebuildItems();
       updateStats();
@@ -1832,20 +1831,8 @@ function setupListeners() {
 
   elements.btnHelp.addEventListener("click", () => {
     elements.helpDialog.showModal();
-    const dotWrapper = document.getElementById("cursor-dot-wrapper");
-    const ringWrapper = document.getElementById("cursor-ring-wrapper");
-    if (dotWrapper && ringWrapper) {
-      elements.helpDialog.appendChild(dotWrapper);
-      elements.helpDialog.appendChild(ringWrapper);
-    }
   });
   elements.helpDialog.addEventListener("close", () => {
-    const dotWrapper = document.getElementById("cursor-dot-wrapper");
-    const ringWrapper = document.getElementById("cursor-ring-wrapper");
-    if (dotWrapper && ringWrapper) {
-      document.body.appendChild(dotWrapper);
-      document.body.appendChild(ringWrapper);
-    }
   });
   elements.btnCloseHelp.addEventListener("click", () => {
     elements.helpDialog.close();
@@ -1878,12 +1865,6 @@ function setupListeners() {
 
   if (customSizeDialog) {
     customSizeDialog.addEventListener("close", () => {
-      const dotWrapper = document.getElementById("cursor-dot-wrapper");
-      const ringWrapper = document.getElementById("cursor-ring-wrapper");
-      if (dotWrapper && ringWrapper) {
-        document.body.appendChild(dotWrapper);
-        document.body.appendChild(ringWrapper);
-      }
     });
   }
 
@@ -2003,7 +1984,7 @@ function setupListeners() {
     elements.tabCrop.classList.add("active");
     elements.stageA4.style.display = "none";
     elements.stageCrop.style.display = "block";
-    
+
     if (!state.selectedImageUri && state.items.length > 0) {
       state.selectedImageUri = state.items[0].uri;
     }
@@ -2016,7 +1997,7 @@ function setupListeners() {
     if (!state.selectedImageUri) return;
     const crop = state.crops[state.selectedImageUri];
     crop.scale = parseFloat(e.target.value);
-    
+
     const shape = MAGNET[state.shapeId];
     if (shape) {
       const rSlot = shape.magnetW / shape.magnetH;
@@ -2033,7 +2014,7 @@ function setupListeners() {
       const hZoomed = hBase * crop.scale;
       const maxOffsetX = (wZoomed - shape.magnetW) / 2;
       const maxOffsetY = (hZoomed - shape.magnetH) / 2;
-      
+
       crop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, crop.offsetX));
       crop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, crop.offsetY));
 
@@ -2049,7 +2030,7 @@ function setupListeners() {
       document.getElementById("val-y").textContent = Math.round(crop.offsetY);
       elements.sliderY.disabled = maxOffsetY <= 0;
     }
-    
+
     document.getElementById("val-zoom").textContent = crop.scale.toFixed(2);
     updateCropImageStyleOnly();
   });
@@ -2236,10 +2217,10 @@ function setupListeners() {
     if (!isDragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    
+
     const shape = MAGNET[state.shapeId];
     if (!shape) return;
-    
+
     const maxWorkspaceDim = 360;
     let editorW;
     if (shape.slotW > shape.slotH) {
@@ -2250,7 +2231,7 @@ function setupListeners() {
     const editorScale = editorW / shape.slotW;
 
     const crop = state.crops[state.selectedImageUri];
-    
+
     const rSlot = shape.magnetW / shape.magnetH;
     const rImg = crop.aspectRatio;
     let wBase, hBase;
@@ -2307,48 +2288,93 @@ function setupListeners() {
   });
 }
 
-// Document Management Engine (LocalStorage API)
-// -- In-memory cache to avoid repeated JSON.parse on every interaction --
-let _docsCache = null; // null = not yet loaded
+// Document Management Engine (IndexedDB + in-memory cache)
+let _docsCache = [];
+let _docsDbPromise = null;
+
+function openDocsDB() {
+  if (_docsDbPromise) return _docsDbPromise;
+  _docsDbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open("printbot", 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("state");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  return _docsDbPromise;
+}
+
+async function hydrateDocsCache() {
+  try {
+    const db = await openDocsDB();
+    const stored = await new Promise((resolve, reject) => {
+      const request = db.transaction("state", "readonly").objectStore("state").get("documents");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (Array.isArray(stored)) return _migrateAndCache(stored);
+
+    // One-time, non-destructive migration from older releases.
+    const legacy = localStorage.getItem("printbot_documents");
+    if (legacy) {
+      const docs = JSON.parse(legacy);
+      _migrateAndCache(Array.isArray(docs) ? docs : []);
+      await _flushDocsCache();
+    }
+  } catch (e) {
+    console.error("Failed to load projects from IndexedDB", e);
+    setStatus("Project storage is unavailable in this browser.");
+  }
+  return _docsCache;
+}
 
 function _migrateAndCache(docs) {
   let modified = false;
   docs.forEach(doc => {
+    if (["heart", "hexagon", "star"].includes(doc.shapeId)) {
+      doc.shapeId = "circle";
+      modified = true;
+    }
     if (doc.shapeId === "octagon") { doc.shapeId = "rectangle"; modified = true; }
     if (doc.items) {
       doc.items.forEach(item => {
+        if (["heart", "hexagon", "star"].includes(item.shapeId)) {
+          item.shapeId = "circle";
+          modified = true;
+        }
         if (item.shapeId === "octagon") { item.shapeId = "rectangle"; modified = true; }
+      });
+    }
+    if (doc.fileShapes) {
+      Object.keys(doc.fileShapes).forEach(uri => {
+        if (["heart", "hexagon", "star"].includes(doc.fileShapes[uri])) {
+          doc.fileShapes[uri] = "circle";
+          modified = true;
+        }
       });
     }
   });
   _docsCache = docs;
-  if (modified) {
-    try { localStorage.setItem("printbot_documents", JSON.stringify(docs)); } catch(e) {}
-  }
+  if (modified) _flushDocsCache();
   return docs;
 }
 
 function getAllDocuments() {
-  // Return from cache when available — avoids JSON.parse on every call
-  if (_docsCache !== null) return _docsCache;
-  try {
-    const raw = localStorage.getItem("printbot_documents");
-    const docs = raw ? JSON.parse(raw) : [];
-    return _migrateAndCache(docs);
-  } catch (e) {
-    console.error("Failed to read/migrate documents from localStorage", e);
-    _docsCache = [];
-    return _docsCache;
-  }
+  return _docsCache;
 }
 
-function _flushDocsCache() {
-  if (_docsCache === null) return;
+async function _flushDocsCache() {
   try {
-    localStorage.setItem("printbot_documents", JSON.stringify(_docsCache));
+    const db = await openDocsDB();
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction("state", "readwrite");
+      transaction.objectStore("state").put(_docsCache, "documents");
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
   } catch (e) {
-    console.error("Failed to save documents to localStorage", e);
-    setStatus("Warning: Local storage full. Design not saved.");
+    console.error("Failed to save projects to IndexedDB", e);
+    setStatus("Warning: Project could not be saved.");
   }
 }
 
@@ -2429,7 +2455,7 @@ async function loadDocument(docId) {
   state.fileQtys = doc.fileQtys || {};
   state.fileShapes = doc.fileShapes || {};
   // state.items will be rebuilt from files + fileQtys after file reconstruction
-  
+
   // Derive unique URIs: prefer fileQtys keys (new saves), fall back to doc.items (legacy)
   const savedItems = doc.items || [];
   const uniqueUris = Object.keys(state.fileQtys).length > 0
@@ -2437,7 +2463,7 @@ async function loadDocument(docId) {
     : [...new Set(savedItems.map(item => item.uri))];
   state.files = [];
 
-  
+
   for (const uri of uniqueUris) {
     try {
       const dims = await getImageDimensions(uri);
@@ -2459,7 +2485,7 @@ async function loadDocument(docId) {
       if (!state.fileShapes[uri]) {
         state.fileShapes[uri] = state.shapeId || "circle";
       }
-      
+
       // Ensure crop info exists and is valid
       if (!state.crops[uri]) {
         state.crops[uri] = {
@@ -2483,7 +2509,7 @@ async function loadDocument(docId) {
   // Update DOM control elements
   // Update shape selection cards
   updateShapeSelection();
-  
+
   // Set active crop preview
   if (state.files.length > 0) {
     state.selectedImageUri = state.files[0].uri;
@@ -2500,7 +2526,7 @@ async function loadDocument(docId) {
     renderPreview();
   }
 
-  
+
   updateStats();
   updateWizardSteps();
   renderImageQueue();
@@ -2573,9 +2599,6 @@ function renderDashboard() {
       square: "Square",
       rectangle: "Rectangle",
       roundedSquare: "Rounded Sq.",
-      star: "Star",
-      heart: "Heart",
-      hexagon: "Hexagon",
       oval: "Oval",
     };
     const shapeLabel = shapeLabels[doc.shapeId] || doc.shapeId;
@@ -2586,9 +2609,6 @@ function renderDashboard() {
       square: "#14b8a6",
       rectangle: "#ec4899",
       roundedSquare: "#8b5cf6",
-      star: "#f59e0b",
-      heart: "#ef4444",
-      hexagon: "#10b981",
       oval: "#3b82f6",
     };
     const accentColor = shapeColors[doc.shapeId] || "#6366f1";
@@ -2597,7 +2617,10 @@ function renderDashboard() {
     const docItems = doc.items || [];
     let previewHtml = "";
     if (docItems.length > 0) {
-      previewHtml = `<img class="preview-image" src="${docItems[0].uri}" alt="Preview" draggable="false" />`;
+      const previewUri = safeImageUri(docItems[0].uri);
+      previewHtml = previewUri
+        ? `<img class="preview-image" src="${escapeXml(previewUri)}" alt="Preview" draggable="false" loading="lazy" decoding="async" />`
+        : "";
     } else {
       previewHtml = `
         <div class="placeholder-preview" style="
@@ -2709,7 +2732,8 @@ function setupDashboardListeners() {
   }
 }
 
-function initializeApp() {
+async function initializeApp() {
+  await hydrateDocsCache();
   const docs = getAllDocuments();
   if (docs.length === 0) {
     // Generate default onboarding document on first launch
@@ -2744,82 +2768,6 @@ setupListeners();
 updateWizardSteps();
 setupDashboardListeners();
 initializeApp();
-
-// Premium Lerped Custom Cursor Logic (Stitch MCP Inspired)
-function initCustomCursor() {
-  const dotWrapper = document.getElementById("cursor-dot-wrapper");
-  const ringWrapper = document.getElementById("cursor-ring-wrapper");
-  const dot = document.getElementById("cursor-dot");
-  const ring = document.getElementById("cursor-ring");
-
-  if (!dotWrapper || !ringWrapper || !dot || !ring) return;
-
-  let mouseX = -100;
-  let mouseY = -100;
-  let ringX = -100;
-  let ringY = -100;
-  let hasMoved = false;
-
-  window.addEventListener("pointermove", (e) => {
-    // Only activate custom cursor for actual mouse pointers (prevents hiding cursor/issues on touchpads/mobile screen taps)
-    if (e.pointerType !== "mouse") return;
-    
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-
-    if (!hasMoved) {
-      hasMoved = true;
-      document.body.classList.add("custom-cursor-enabled");
-      dotWrapper.style.opacity = "1";
-      ringWrapper.style.opacity = "1";
-      ringX = mouseX;
-      ringY = mouseY;
-    }
-
-    // Instant follow for the inner dot
-    dotWrapper.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
-  });
-
-  // Handle pointer leaving window
-  document.addEventListener("pointerleave", () => {
-    dotWrapper.style.opacity = "0";
-    ringWrapper.style.opacity = "0";
-    document.body.classList.remove("custom-cursor-enabled");
-    hasMoved = false;
-  });
-
-  function tick() {
-    if (hasMoved) {
-      // Lerp (Linear Interpolation) for the lag-ring trail
-      const dx = mouseX - ringX;
-      const dy = mouseY - ringY;
-      if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-        ringX += dx * 0.15;
-        ringY += dy * 0.15;
-        ringWrapper.style.transform = `translate3d(${ringX}px, ${ringY}px, 0)`;
-      }
-    }
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-
-  // Mouse hover event delegation for clickables
-  const hoverSelector = "button, a, .shape-card, .thumb, .dropzone, input, select, textarea, [role='button'], .crop-interactive-area, .crop-queue-thumb, .doc-thumbnail, .doc-card, .preset-card";
-
-  document.addEventListener("mouseover", (e) => {
-    if (e.target.closest && e.target.closest(hoverSelector)) {
-      dot.classList.add("hovered");
-      ring.classList.add("hovered");
-    }
-  });
-
-  document.addEventListener("mouseout", (e) => {
-    if (e.target.closest && e.target.closest(hoverSelector)) {
-      dot.classList.remove("hovered");
-      ring.classList.remove("hovered");
-    }
-  });
-}
 
 // ── License UI ────────────────────────────────────────────────
 function showActivationModal(msg) {
@@ -2941,4 +2889,3 @@ async function initLicense() {
 }
 
 initLicense();
-initCustomCursor();

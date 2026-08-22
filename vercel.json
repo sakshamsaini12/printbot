@@ -14,7 +14,7 @@
       "headers": [{ "key": "cache-control", "value": "public, max-age=31536000, immutable" }]
     },
     {
-      "source": "/(app\\.js|styles\\.css|keygen\\.html)",
+      "source": "/(app\\.min\\.js|tailwind\\.css|styles\\.css|keygen\\.html)",
       "headers": [{ "key": "cache-control", "value": "public, max-age=86400" }]
     }
   ]

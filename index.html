@@ -5,57 +5,12 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="description" content="Premium layout workspace for ShopShip. Create beautiful print designs with ease." />
     <title>PrintBot Web Tool - ShopShip</title>
-    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com" />
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/jpeg" href="assets/shopship_logo.jpg" />
+    <link rel="stylesheet" href="tailwind.css" />
     <link rel="stylesheet" href="styles.css" />
-    
-    <script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              "surface-dim": "#F3F4F6",
-              "surface-container-low": "#FFFFFF",
-              "surface-container": "#F9FAF5",
-              "surface-container-high": "#E5E7EB",
-              "surface-container-highest": "#D1D5DB",
-              "surface-container-lowest": "#F9FAF5",
-              "primary": "#7C3AED",
-              "on-primary": "#ffffff",
-              "secondary": "#0EA5E9",
-              "accent-2": "#D97706",
-              "accent-3": "#EC4899",
-              "outline": "rgba(0, 0, 0, 0.08)",
-              "background": "#F3F4F6",
-              "on-surface": "#1F2937",
-              "on-surface-variant": "#4B5563"
-            },
-            borderRadius: {
-              "DEFAULT": "8px",
-              "lg": "12px",
-              "xl": "16px",
-              "full": "9999px"
-            },
-            spacing: {
-              "panel-width": "340px",
-              "base": "8px",
-              "margin-desktop": "32px",
-              "gutter": "20px"
-            },
-            fontFamily: {
-              "title": ["Space Grotesk", "sans-serif"],
-              "body": ["Inter", "sans-serif"],
-              "mono": ["Space Mono", "monospace"]
-            }
-          }
-        }
-      }
-    </script>
     <style>
       .glass-panel {
         background: rgba(255, 255, 255, 0.8);
@@ -111,21 +66,6 @@
         border-color: #EC4899;
         box-shadow: 0 0 15px rgba(236, 72, 153, 0.15);
       }
-      .shape-card.active[data-shape="heart"] {
-        background: rgba(236, 72, 153, 0.08);
-        border-color: #EC4899;
-        box-shadow: 0 0 15px rgba(236, 72, 153, 0.15);
-      }
-      .shape-card.active[data-shape="hexagon"] {
-        background: rgba(124, 58, 237, 0.08);
-        border-color: #7C3AED;
-        box-shadow: 0 0 15px rgba(124, 58, 237, 0.15);
-      }
-      .shape-card.active[data-shape="star"] {
-        background: rgba(217, 119, 6, 0.08);
-        border-color: #D97706;
-        box-shadow: 0 0 15px rgba(217, 119, 6, 0.15);
-      }
       
       .shape-label {
         font-family: 'Space Grotesk', sans-serif;
@@ -157,48 +97,6 @@
         background: rgba(124, 58, 237, 0.08);
       }
       
-      /* Custom Cursor styles */
-      .custom-cursor-dot-wrapper,
-      .custom-cursor-ring-wrapper {
-        position: fixed;
-        top: 0;
-        left: 0;
-        pointer-events: none;
-        z-index: 999999;
-        opacity: 0;
-        transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        will-change: transform;
-      }
-      .custom-cursor-dot {
-        width: 26px;
-        height: 26px;
-        background-image: url('assets/shopship_logo.jpg');
-        background-size: cover;
-        background-position: center;
-        border-radius: 50%;
-        border: 1.2px solid #0EA5E9;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        transform: translate(-50%, -50%) scale(1);
-        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
-      }
-      .custom-cursor-ring {
-        width: 42px;
-        height: 42px;
-        border: 1.2px solid rgba(124, 58, 237, 0.4);
-        border-radius: 50%;
-        transform: translate(-50%, -50%) scale(1);
-        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background-color 0.2s ease;
-      }
-      body.custom-cursor-enabled,
-      body.custom-cursor-enabled * {
-        cursor: none !important;
-      }
-      /* Restore native cursor inside open dialogs — they render in the top layer
-         above the custom cursor's z-index, so the custom cursor is invisible there */
-      dialog[open],
-      dialog[open] * {
-        cursor: auto !important;
-      }
       dialog[open] button,
       dialog[open] input,
       dialog[open] select,
@@ -527,27 +425,6 @@
               <div>
                 <h3 class="font-bold text-sm text-gray-900">Rectangle</h3>
                 <p class="text-[10px] text-gray-500 mt-1">90x65 mm · 4/page</p>
-              </div>
-            </button>
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-accent-3/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="heart">
-              <span class="material-symbols-outlined text-4xl text-accent-3" data-icon="favorite">favorite</span>
-              <div>
-                <h3 class="font-bold text-sm text-gray-900">Heart</h3>
-                <p class="text-[10px] text-gray-500 mt-1">60 mm · 12/page</p>
-              </div>
-            </button>
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-primary/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="hexagon">
-              <span class="material-symbols-outlined text-4xl text-primary" data-icon="hexagon">hexagon</span>
-              <div>
-                <h3 class="font-bold text-sm text-gray-900">Hexagon</h3>
-                <p class="text-[10px] text-gray-500 mt-1">60 mm · 12/page</p>
-              </div>
-            </button>
-            <button class="preset-card group p-6 rounded-2xl border border-outline bg-surface-container-low hover:border-accent-2/50 hover:shadow-lg transition-all text-center flex flex-col items-center gap-3" data-preset="star">
-              <span class="material-symbols-outlined text-4xl text-accent-2" data-icon="grade">grade</span>
-              <div>
-                <h3 class="font-bold text-sm text-gray-900">Star</h3>
-                <p class="text-[10px] text-gray-500 mt-1">60 mm · 12/page</p>
               </div>
             </button>
           </div>
@@ -920,14 +797,6 @@
       </div>
     </dialog>
 
-    <!-- Custom Mascot Cursor Elements -->
-    <div class="custom-cursor-dot-wrapper" id="cursor-dot-wrapper">
-      <div class="custom-cursor-dot" id="cursor-dot"></div>
-    </div>
-    <div class="custom-cursor-ring-wrapper" id="cursor-ring-wrapper">
-      <div class="custom-cursor-ring" id="cursor-ring"></div>
-    </div>
-
     <!-- ── Activation Modal ──────────────────────────────── -->
     <dialog id="activation-modal" class="activation-modal-dialog">
       <div class="activation-modal-inner">
@@ -970,7 +839,6 @@
       </div>
     </dialog>
 
-    <script src="app.js" defer></script>
+    <script src="app.min.js" defer></script>
   </body>
 </html>
-

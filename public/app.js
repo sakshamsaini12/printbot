@@ -1,14 +1,13 @@
 /* ═══════════════════════════════════════════════════════════
    LICENSE SYSTEM  — server-validated, no secrets in client
-   Demo counter tracked server-side by IP (not localStorage)
-   so clearing browser data does NOT reset the demo limit.
    ═══════════════════════════════════════════════════════════ */
 const LICENSE = (() => {
   const DEMO_LIMIT = 5;
   const LS_DEVICE  = "pb_device_id";
   const LS_LICENSE = "pb_license";
+  const LS_UPLOADS = "pb_demo_uploads";
 
-  // ── Device ID ────────────────────────────────────────────
+  // ── Device ID (persistent UUID) ──────────────────────────
   function uuid() {
     return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
       (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)).toUpperCase();
@@ -23,101 +22,80 @@ const LICENSE = (() => {
     try { return JSON.parse(localStorage.getItem(LS_LICENSE)); } catch { return null; }
   }
 
-  // ── Activate ─────────────────────────────────────────────
+  // ── Activate via server ──────────────────────────────────
   async function activate(key) {
-    const clean    = key.trim().toUpperCase().replace(/[^A-Z0-9\-]/g, "").slice(0, 30);
+    const clean    = key.trim().toUpperCase();
     const deviceId = getDeviceId();
+    let res, data;
     try {
-      const res  = await fetch("/api/activate", {
+      res  = await fetch("/api/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: clean, deviceId }),
       });
-      const data = await res.json();
-      if (!data.ok) return { ok: false, msg: data.msg || "Activation failed." };
-      localStorage.setItem(LS_LICENSE, JSON.stringify({
-        key: clean, deviceId, token: data.token, activatedAt: Date.now(),
-      }));
-      return { ok: true };
+      data = await res.json();
     } catch {
       return { ok: false, msg: "Cannot reach license server. Check your connection." };
     }
+    if (!data.ok) return { ok: false, msg: data.msg || "Activation failed." };
+
+    // Store signed token returned by server
+    localStorage.setItem(LS_LICENSE, JSON.stringify({
+      key: clean, deviceId, token: data.token, activatedAt: Date.now(),
+    }));
+    return { ok: true };
   }
 
-  // ── Verify ───────────────────────────────────────────────
+  // ── Verify stored license with server ────────────────────
   async function verify() {
     const stored = getLicense();
     if (!stored || !stored.token) return false;
     const deviceId = getDeviceId();
     if (stored.deviceId !== deviceId) return false;
+    let res, data;
     try {
-      const res  = await fetch("/api/verify", {
+      res  = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: stored.key, deviceId, token: stored.token }),
       });
-      const data = await res.json();
-      if (!data.ok) { localStorage.removeItem(LS_LICENSE); return false; }
-      return true;
+      data = await res.json();
     } catch {
-      // Offline grace: allow if activated within last 30 days
-      const ago30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
-      return (stored.activatedAt || 0) > ago30;
+      // If server unreachable but we have a cached valid token, allow offline access
+      // Only grant offline grace if the token exists and is recent (within last 30 days)
+      const activatedAt = stored.activatedAt || Date.now();
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      if (activatedAt > thirtyDaysAgo) {
+        return true; // Offline grace: recent activation, trust the cached token
+      }
+      return false; // License too old, require server verification
     }
+    if (!data.ok) {
+      // Key revoked — clear stored license
+      localStorage.removeItem(LS_LICENSE);
+      return false;
+    }
+    return true;
   }
 
-  // ── Demo counter — SERVER-SIDE (IP-based, bypass-proof) ──
-  // _demoRemaining is a cache so badge updates stay synchronous.
-  let _demoRemaining = DEMO_LIMIT;
-
-  async function refreshDemoCount() {
-    try {
-      const res  = await fetch("/api/demo/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId: getDeviceId() }),
-      });
-      const data = await res.json();
-      if (data.ok) _demoRemaining = data.remaining;
-    } catch {
-      // Server unreachable — keep current cached value
-    }
-  }
-
-  /** Consume `count` demo slots server-side. Returns { ok, remaining }. */
-  async function useDemo(count = 1) {
-    try {
-      const res  = await fetch("/api/demo/use", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId: getDeviceId(), count }),
-      });
-      const data = await res.json();
-      if (typeof data.remaining === "number") _demoRemaining = data.remaining;
-      return data;
-    } catch {
-      // Offline fallback: decrement locally
-      _demoRemaining = Math.max(0, _demoRemaining - count);
-      return { ok: _demoRemaining >= 0, remaining: _demoRemaining };
-    }
-  }
-
-  function demoRemaining() { return _demoRemaining; }
-  function isDemo()        { return _demoRemaining > 0; }
+  // ── Demo counter ─────────────────────────────────────────
+  function getDemoCount()  { return parseInt(localStorage.getItem(LS_UPLOADS) || "0", 10); }
+  function incrementDemo() { const n = getDemoCount()+1; localStorage.setItem(LS_UPLOADS, n); return n; }
+  function isDemo()        { return getDemoCount() < DEMO_LIMIT; }
+  function demoRemaining() { return Math.max(0, DEMO_LIMIT - getDemoCount()); }
 
   // ── Public state ─────────────────────────────────────────
   let _active = false;
 
   async function init() {
     _active = await verify();
-    if (!_active) await refreshDemoCount();
     return _active;
   }
-  function isActive()   { return _active; }
-  function setActive(v) { _active = v; }
+  function isActive()    { return _active; }
+  function setActive(v)  { _active = v; }
 
   return { init, isActive, setActive, activate,
-           useDemo, refreshDemoCount, isDemo, demoRemaining, DEMO_LIMIT };
+           getDemoCount, incrementDemo, isDemo, demoRemaining, DEMO_LIMIT };
 })();
 
 const A4 = {
@@ -164,59 +142,6 @@ const MAGNET = {
     margin: 80,
     type: "rectangle",
   },
-  heart: {
-    id: "heart",
-    label: "60 mm Heart",
-    subtitle: "60 mm · 12 per page",
-    magnetW: 709,
-    magnetH: 709,
-    slotW: 815,
-    slotH: 815,
-    borderRadius: 407,
-    margin: 15,
-    type: "path",
-    path: "M 354.5 120 C 250 0 100 100 100 250 C 100 400 300 550 354.5 609 C 409 550 609 400 609 250 C 609 100 459 0 354.5 120 Z",
-  },
-  hexagon: {
-    id: "hexagon",
-    label: "60 mm Hexagon",
-    subtitle: "60 mm · 12 per page",
-    magnetW: 709,
-    magnetH: 709,
-    slotW: 815,
-    slotH: 815,
-    borderRadius: 407,
-    margin: 15,
-    type: "path",
-    path: "M 354.5 0 L 709 177.25 L 709 531.75 L 354.5 709 L 0 531.75 L 0 177.25 Z",
-  },
-  star: {
-    id: "star",
-    label: "60 mm Star",
-    subtitle: "60 mm · 12 per page",
-    magnetW: 709,
-    magnetH: 709,
-    slotW: 815,
-    slotH: 815,
-    borderRadius: 407,
-    margin: 15,
-    type: "path",
-    path: "M 354.5 0 L 464.3 222.5 L 709 258.1 L 531.8 430.8 L 573.6 674.6 L 354.5 559.4 L 135.4 674.6 L 177.2 430.8 L 0 258.1 L 244.7 222.5 Z",
-  },
-  acrylicFrame: {
-    id: "acrylicFrame",
-    label: "2.5\" × 3.5\"",
-    subtitle: "Acrylic Frame · 4 per page",
-    magnetW: 808,
-    magnetH: 1120,
-    slotW: 969,
-    slotH: 1271,
-    borderRadius: 70,
-    safeMarginPx: 24,
-    margin: 80,
-    type: "rectangle",
-    showBoundary: false,
-  },
 };
 
 const FILTER_PRESETS = {
@@ -258,7 +183,6 @@ const state = {
   fileNames: {}, // uri -> custom display name
   fileQtys: {},  // uri -> repeat count (default 1)
   fileShapes: {}, // uri -> shapeId override (null = use global)
-  fileShapesPinned: {}, // uri -> true once the user manually picks a per-image shape chip
   previewZoom: 1.0, // canvas zoom level
 };
 
@@ -277,14 +201,13 @@ const elements = {
   btnHelp: document.getElementById("btn-help"),
   btnCloseHelp: document.getElementById("btn-close-help"),
   helpDialog: document.getElementById("help-dialog"),
-  
+
   // Crop Editor Elements
   tabA4: document.getElementById("tab-a4"),
   tabCrop: document.getElementById("tab-crop"),
   stageA4: document.getElementById("stage-a4"),
   stageCrop: document.getElementById("stage-crop"),
   cropInteractiveArea: document.getElementById("crop-interactive-area"),
-  cropImgClipWrapper: document.getElementById("crop-img-clip-wrapper"),
   cropPreviewImg: document.getElementById("crop-preview-img"),
   cropGuidelines: document.getElementById("crop-guidelines"),
   sliderZoom: document.getElementById("slider-zoom"),
@@ -537,12 +460,6 @@ function createShapeButtons() {
         const customSizeDialog = document.getElementById("custom-size-dialog");
         if (customSizeDialog) {
           customSizeDialog.showModal();
-          const dotWrapper = document.getElementById("cursor-dot-wrapper");
-          const ringWrapper = document.getElementById("cursor-ring-wrapper");
-          if (dotWrapper && ringWrapper) {
-            customSizeDialog.appendChild(dotWrapper);
-            customSizeDialog.appendChild(ringWrapper);
-          }
         }
       });
       return;
@@ -550,13 +467,8 @@ function createShapeButtons() {
 
     card.addEventListener("click", () => {
       state.shapeId = card.dataset.shape;
-      // Only re-stamp images that haven't had their shape manually overridden
-      // per-image — otherwise picking a template here would silently wipe out
-      // any custom per-image shape assignments made via the upload list chips.
       Object.keys(state.fileShapes).forEach(uri => {
-        if (!state.fileShapesPinned[uri]) {
-          state.fileShapes[uri] = state.shapeId;
-        }
+        state.fileShapes[uri] = state.shapeId;
       });
       rebuildItems();
       updateShapeSelection();
@@ -632,31 +544,29 @@ async function loadFiles(fileList) {
   const files = Array.from(fileList);
   if (!files.length) return;
 
-  // ── License / demo check (server-side — IP-based, not clearable) ──
-  let filesToLoad = Array.from(files);
+  // ── License / demo check ──────────────────────────────
+  let filesToLoad = Array.from(files);  // Make a mutable copy
 
   if (!LICENSE.isActive()) {
-    // Always get fresh count from server before allowing upload
-    await LICENSE.refreshDemoCount();
     const remaining = LICENSE.demoRemaining();
-
     if (remaining <= 0) {
       showActivationModal("You've used all 5 free demo uploads. Activate your license to continue.");
       return;
     }
-
-    // Trim files to what's allowed
-    if (filesToLoad.length > remaining) {
-      filesToLoad = filesToLoad.slice(0, remaining);
-      setStatus(`Demo: only ${remaining} more file${remaining !== 1 ? "s" : ""} allowed. Activate for unlimited.`);
+    // Count each file added toward the demo limit
+    const newCount = LICENSE.getDemoCount() + filesToLoad.length;
+    if (newCount > LICENSE.DEMO_LIMIT) {
+      const allowed = LICENSE.DEMO_LIMIT - LICENSE.getDemoCount();
+      if (allowed <= 0) {
+        showActivationModal("You've used all 5 free demo uploads. Activate your license to continue.");
+        return;
+      }
+      // Allow only up to the limit
+      filesToLoad = filesToLoad.slice(0, allowed);
+      setStatus(`Demo: only ${allowed} more file${allowed > 1 ? "s" : ""} allowed. Activate for unlimited.`);
     }
-
-    // Consume demo slots server-side
-    const result = await LICENSE.useDemo(filesToLoad.length);
-    if (!result.ok && filesToLoad.length > 0) {
-      showActivationModal("You've used all 5 free demo uploads. Activate your license to continue.");
-      return;
-    }
+    // Increment demo counter by however many files we're actually loading
+    for (let i = 0; i < filesToLoad.length; i++) LICENSE.incrementDemo();
     updateLicenseBadge();
   }
 
@@ -665,7 +575,7 @@ async function loadFiles(fileList) {
     filesToLoad.map(async (file) => {
       const uri = await readFileAsDataURL(file);
       const dims = await getImageDimensions(uri);
-      
+
       if (!state.crops[uri]) {
         state.crops[uri] = {
           scale: 1.0,
@@ -681,7 +591,7 @@ async function loadFiles(fileList) {
           preset: "original",
         };
       }
-      
+
       // Derive a friendly default name from the file's actual filename
       const rawName = file.name || "Image";
       const nameStem = rawName.replace(/\.[^.]+$/, ""); // strip extension
@@ -807,10 +717,7 @@ function renderPreview() {
 
   // Compute scale — cap page width so it floats in grey canvas with visible margins (Canva-style)
   const scrollArea = document.getElementById("preview-scroll-area");
-  let scrollW = scrollArea ? scrollArea.clientWidth : 900;
-  // If the container is hidden (e.g. mobile view before "View Preview" is tapped),
-  // clientWidth is 0 — fall back to the viewport width so we don't compute a negative scale.
-  if (!scrollW) scrollW = window.innerWidth || 900;
+  const scrollW = scrollArea ? scrollArea.clientWidth : 900;
   // Max page width: container minus at least 80px of grey on each side, capped at 720px
   const maxPagePx = Math.min(720, scrollW - 80);
   const scale = (maxPagePx / A4.width) * state.previewZoom;
@@ -824,7 +731,16 @@ function renderPreview() {
     const delay = (index * 0.09).toFixed(2);
     pagesHtml += `
       <div class="page-enter" style="animation-delay:${delay}s;" data-page="${index}">
-        <div class="canva-page-sheet" style="width:${pageW}px;height:${pageH}px;overflow:hidden;flex-shrink:0;">
+        <div style="
+          width:${pageW}px;
+          height:${pageH}px;
+          background:#fff;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 6px 24px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.07);
+          border-radius:3px;
+          overflow:hidden;
+          flex-shrink:0;
+          transition: box-shadow 0.3s ease;
+        " onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12),0 12px 40px rgba(0,0,0,0.14)'" onmouseleave="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.08),0 6px 24px rgba(0,0,0,0.10),0 2px 8px rgba(0,0,0,0.07)'">
           ${svg}
         </div>
       </div>
@@ -1239,27 +1155,13 @@ function triggerDownload(dataUrl, filename) {
   document.body.removeChild(link);
 }
 
-// The crop editor's interactive area is sized to fit within #crop-canvas-wrapper.
-// On narrow (mobile) viewports the wrapper is smaller than the 360px desktop default,
-// and flexbox shrinks the absolutely-positioned #crop-interactive-area to match — so
-// all editor math must use this actual available size, not a hardcoded 360.
-function getCropMaxDim() {
-  const wrapper = document.getElementById("crop-canvas-wrapper");
-  if (!wrapper) return 360;
-  const style = getComputedStyle(wrapper);
-  const padX = parseFloat(style.paddingLeft || 0) + parseFloat(style.paddingRight || 0);
-  const available = wrapper.clientWidth - padX;
-  if (!available || available <= 0) return 360;
-  return Math.max(120, Math.min(360, available));
-}
-
 function updateCropImageStyleOnly() {
   if (!state.selectedImageUri) return;
   const crop = state.crops[state.selectedImageUri];
-  const shape = MAGNET[state.fileShapes[state.selectedImageUri] || state.shapeId];
+  const shape = MAGNET[state.shapeId];
   if (!shape) return;
 
-  const maxWorkspaceDim = getCropMaxDim();
+  const maxWorkspaceDim = 360;
   let editorW, editorH;
   if (shape.slotW > shape.slotH) {
     editorW = maxWorkspaceDim;
@@ -1308,10 +1210,10 @@ function updateCropUI() {
   elements.cropPreviewImg.style.display = "block";
 
   const crop = state.crops[state.selectedImageUri];
-  const shape = MAGNET[state.fileShapes[state.selectedImageUri] || state.shapeId];
+  const shape = MAGNET[state.shapeId];
   if (!shape) return;
 
-  const maxWorkspaceDim = getCropMaxDim();
+  const maxWorkspaceDim = 360;
   let editorW, editorH;
   if (shape.slotW > shape.slotH) {
     editorW = maxWorkspaceDim;
@@ -1356,7 +1258,7 @@ function updateCropUI() {
   elements.cropPreviewImg.style.left = `${xNative * editorScale}px`;
   elements.cropPreviewImg.style.top = `${yNative * editorScale}px`;
 
-  updateGuidelinesSvg(shape, editorScale);
+  updateGuidelinesSvg(shape);
 
   elements.sliderZoom.disabled = false;
   elements.sliderZoom.value = crop.scale;
@@ -1397,7 +1299,7 @@ function updateCropUI() {
   elements.cropPreviewImg.style.filter = getFilterString(crop);
 }
 
-function updateGuidelinesSvg(shape, editorScale) {
+function updateGuidelinesSvg(shape) {
   const svg = elements.cropGuidelines;
   svg.setAttribute("viewBox", `0 0 ${shape.slotW} ${shape.slotH}`);
   svg.innerHTML = "";
@@ -1411,44 +1313,21 @@ function updateGuidelinesSvg(shape, editorScale) {
   const cx = w / 2;
   const cy = h / 2;
 
-  // Actual clip applied to the image itself, so the live preview is masked to
-  // the real magnet shape (circle/heart/star/etc), not just darkened around a rect.
-  let imgClipShape = "";
-  if (elements.cropImgClipWrapper && editorScale) {
-    const cxPx = cx * editorScale;
-    const cyPx = cy * editorScale;
-    const xCutPx = xCut * editorScale;
-    const yCutPx = yCut * editorScale;
-    const mwPx = mw * editorScale;
-    const mhPx = mh * editorScale;
-    if (shape.type === "circle" || shape.id === "circle") {
-      imgClipShape = `<circle cx="${cxPx}" cy="${cyPx}" r="${mwPx / 2}" />`;
-    } else if (shape.type === "path" || shape.path) {
-      const sfX = mwPx / 709;
-      const sfY = mhPx / 709;
-      imgClipShape = `<path d="${shape.path}" transform="translate(${xCutPx}, ${yCutPx}) scale(${sfX}, ${sfY})" />`;
-    } else {
-      const br = (shape.borderRadius || 0) * editorScale;
-      imgClipShape = `<rect x="${xCutPx}" y="${yCutPx}" width="${mwPx}" height="${mhPx}" rx="${br}" ry="${br}" />`;
-    }
-    elements.cropImgClipWrapper.style.clipPath = "url(#crop-img-shape-clip)";
-  }
-
   let maskPath = "";
   let cutPath = "";
   let safePath = "";
 
-  if (shape.type === "circle" || shape.id === "circle") {
+  if (shape.id === "circle") {
     const rCut = mw / 2;
     const rSafe = rCut - 24;
-    
+
     maskPath = `<circle cx="${cx}" cy="${cy}" r="${rCut}" fill="black" />`;
     cutPath = `<circle cx="${cx}" cy="${cy}" r="${rCut}" stroke="#10b981" stroke-width="3.5" fill="none" />`;
     safePath = `<circle cx="${cx}" cy="${cy}" r="${rSafe}" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="8,6" fill="none" />`;
   } else if (shape.id === "square") {
     const br = shape.borderRadius || 0;
     const brSafe = Math.max(0, br - 24);
-    
+
     maskPath = `<rect x="${xCut}" y="${yCut}" width="${mw}" height="${mh}" rx="${br}" ry="${br}" fill="black" />`;
     cutPath = `<rect x="${xCut}" y="${yCut}" width="${mw}" height="${mh}" rx="${br}" ry="${br}" stroke="#10b981" stroke-width="3.5" fill="none" />`;
     safePath = `<rect x="${xCut + 24}" y="${yCut + 24}" width="${mw - 48}" height="${mh - 48}" rx="${brSafe}" ry="${brSafe}" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="8,6" fill="none" />`;
@@ -1461,7 +1340,7 @@ function updateGuidelinesSvg(shape, editorScale) {
   } else {
     const br = shape.borderRadius || 0;
     const brSafe = Math.max(0, br - 24);
-    
+
     maskPath = `<rect x="${xCut}" y="${yCut}" width="${mw}" height="${mh}" rx="${br}" ry="${br}" fill="black" />`;
     cutPath = `<rect x="${xCut}" y="${yCut}" width="${mw}" height="${mh}" rx="${br}" ry="${br}" stroke="#10b981" stroke-width="3.5" fill="none" />`;
     safePath = `<rect x="${xCut + 24}" y="${yCut + 24}" width="${mw - 48}" height="${mh - 48}" rx="${brSafe}" ry="${brSafe}" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="8,6" fill="none" />`;
@@ -1473,27 +1352,23 @@ function updateGuidelinesSvg(shape, editorScale) {
         <rect x="0" y="0" width="${w}" height="${h}" fill="white" />
         ${maskPath}
       </mask>
-      <clipPath id="crop-img-shape-clip">
-        ${imgClipShape}
-      </clipPath>
     </defs>
-    
+
     <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(9, 9, 11, 0.75)" mask="url(#editor-crop-mask)" />
-    
+
     <rect x="2" y="2" width="${w - 4}" height="${h - 4}" stroke="rgba(239, 68, 68, 0.35)" stroke-width="2.5" stroke-dasharray="8,6" fill="none" />
     <text x="14" y="26" fill="rgba(239, 68, 68, 0.85)" font-size="16" font-family="Space Mono, monospace" font-weight="700">BLEED ZONE</text>
-    
+
     ${cutPath}
-    <text x="${xCut + 14}" y="${Math.max(yCut - 10, 48)}" fill="#10b981" font-size="16" font-family="Space Mono, monospace" font-weight="700">CUT LINE</text>
-    
+    <text x="${xCut + 14}" y="${yCut - 10}" fill="#10b981" font-size="16" font-family="Space Mono, monospace" font-weight="700">CUT LINE</text>
+
     ${safePath}
     <text x="${xCut + 34}" y="${yCut + 42}" fill="#6366f1" font-size="16" font-family="Space Mono, monospace" font-weight="700">SAFE AREA</text>
   `;
 }
 
 function createThumbSvg(item, crop) {
-  const activeShapeId = item.shapeId || state.fileShapes[item.uri] || state.shapeId;
-  const shape = MAGNET[activeShapeId];
+  const shape = MAGNET[state.shapeId];
   if (!shape) return "";
   const scale = 80 / shape.slotW;
   const w = 80;
@@ -1527,7 +1402,7 @@ function createThumbSvg(item, crop) {
 
   let clipPathContent = "";
   let outlineContent = "";
-  if (activeShapeId === "circle" || shape.type === "circle") {
+  if (state.shapeId === "circle" || shape.type === "circle") {
     clipPathContent = `<circle cx="${w / 2}" cy="${h / 2}" r="${mw / 2}" />`;
     outlineContent = `<circle cx="${w / 2}" cy="${h / 2}" r="${mw / 2}" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" fill="none" />`;
   } else if (shape.type === "path" || shape.path) {
@@ -1558,7 +1433,7 @@ function updateActiveCropQueueThumb() {
   if (!state.selectedImageUri) return;
   const queueGrid = elements.cropQueueGrid;
   if (!queueGrid) return;
-  
+
   // Find the thumb container that represents the active image by looking for the active class
   const activeThumbEl = queueGrid.querySelector(`.crop-queue-thumb.active`);
   if (activeThumbEl) {
@@ -1621,10 +1496,10 @@ function renderCropQueue() {
     const isActive = item.uri === state.selectedImageUri;
     const thumbContainer = document.createElement("div");
     thumbContainer.className = `crop-queue-thumb ${isActive ? "active" : ""}`;
-    
+
     const crop = state.crops[item.uri] || { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: 1.0 };
     const thumbSvg = createThumbSvg(item, crop);
-    
+
     thumbContainer.innerHTML = `
       <div class="thumb-wrapper">
         ${thumbSvg}
@@ -1655,7 +1530,6 @@ function deleteImage(uri) {
   delete state.fileNames[uri];
   delete state.fileQtys[uri];
   delete state.fileShapes[uri];
-  delete state.fileShapesPinned[uri];
 
   if (state.selectedImageUri === uri) {
     if (state.files.length > 0) {
@@ -1786,16 +1660,10 @@ function renderImageQueue() {
         e.stopPropagation();
         const newShape = chip.dataset.shape;
         state.fileShapes[uri] = newShape;
-        state.fileShapesPinned[uri] = true;
         item.querySelectorAll(".iq-shape-chip").forEach(c => c.classList.toggle("active", c.dataset.shape === newShape));
         rebuildItems();
         debouncedGenerateLayout();
         debouncedSave();
-        // Keep the crop editor in sync if it's open on this (or any) image
-        if (elements.stageCrop.style.display !== "none") {
-          renderCropQueue();
-          if (state.selectedImageUri === uri) updateCropUI();
-        }
       });
     });
 
@@ -1826,7 +1694,6 @@ function setupListeners() {
       state.fileNames = {};
       state.fileQtys = {};
       state.fileShapes = {};
-      state.fileShapesPinned = {};
       state.selectedImageUri = null;
       state.pages = [];
       state.selectedPage = 0;
@@ -1920,20 +1787,8 @@ function setupListeners() {
 
   elements.btnHelp.addEventListener("click", () => {
     elements.helpDialog.showModal();
-    const dotWrapper = document.getElementById("cursor-dot-wrapper");
-    const ringWrapper = document.getElementById("cursor-ring-wrapper");
-    if (dotWrapper && ringWrapper) {
-      elements.helpDialog.appendChild(dotWrapper);
-      elements.helpDialog.appendChild(ringWrapper);
-    }
   });
   elements.helpDialog.addEventListener("close", () => {
-    const dotWrapper = document.getElementById("cursor-dot-wrapper");
-    const ringWrapper = document.getElementById("cursor-ring-wrapper");
-    if (dotWrapper && ringWrapper) {
-      document.body.appendChild(dotWrapper);
-      document.body.appendChild(ringWrapper);
-    }
   });
   elements.btnCloseHelp.addEventListener("click", () => {
     elements.helpDialog.close();
@@ -1966,12 +1821,6 @@ function setupListeners() {
 
   if (customSizeDialog) {
     customSizeDialog.addEventListener("close", () => {
-      const dotWrapper = document.getElementById("cursor-dot-wrapper");
-      const ringWrapper = document.getElementById("cursor-ring-wrapper");
-      if (dotWrapper && ringWrapper) {
-        document.body.appendChild(dotWrapper);
-        document.body.appendChild(ringWrapper);
-      }
     });
   }
 
@@ -2032,9 +1881,7 @@ function setupListeners() {
 
       state.shapeId = customId;
       Object.keys(state.fileShapes).forEach(uri => {
-        if (!state.fileShapesPinned[uri]) {
-          state.fileShapes[uri] = state.shapeId;
-        }
+        state.fileShapes[uri] = state.shapeId;
       });
       rebuildItems();
       updateShapeSelection();
@@ -2051,7 +1898,7 @@ function setupListeners() {
     if (elements.stageCrop.style.display !== "none") {
       updateCropUI();
     }
-  }, { passive: true });
+  });
 
 
   // Keyboard arrow navigation between pages (when not in a text input)
@@ -2093,7 +1940,7 @@ function setupListeners() {
     elements.tabCrop.classList.add("active");
     elements.stageA4.style.display = "none";
     elements.stageCrop.style.display = "block";
-    
+
     if (!state.selectedImageUri && state.items.length > 0) {
       state.selectedImageUri = state.items[0].uri;
     }
@@ -2107,7 +1954,7 @@ function setupListeners() {
     const crop = state.crops[state.selectedImageUri];
     crop.scale = parseFloat(e.target.value);
 
-    const shape = MAGNET[state.fileShapes[state.selectedImageUri] || state.shapeId];
+    const shape = MAGNET[state.shapeId];
     if (shape) {
       const rSlot = shape.magnetW / shape.magnetH;
       const rImg = crop.aspectRatio;
@@ -2123,7 +1970,7 @@ function setupListeners() {
       const hZoomed = hBase * crop.scale;
       const maxOffsetX = (wZoomed - shape.magnetW) / 2;
       const maxOffsetY = (hZoomed - shape.magnetH) / 2;
-      
+
       crop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, crop.offsetX));
       crop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, crop.offsetY));
 
@@ -2139,7 +1986,7 @@ function setupListeners() {
       document.getElementById("val-y").textContent = Math.round(crop.offsetY);
       elements.sliderY.disabled = maxOffsetY <= 0;
     }
-    
+
     document.getElementById("val-zoom").textContent = crop.scale.toFixed(2);
     updateCropImageStyleOnly();
   });
@@ -2221,45 +2068,13 @@ function setupListeners() {
         if (!state.crops[file.uri]) {
           state.crops[file.uri] = { scale: 1.0, offsetX: 0, offsetY: 0, aspectRatio: file.aspectRatio, width: file.width, height: file.height };
         }
-        const targetCrop = state.crops[file.uri];
-        targetCrop.scale = currentCrop.scale;
-
-        // Clamp offsets to this image's own pan range — its shape and aspect
-        // ratio may differ from the source image, so the source's offsets may
-        // be out of bounds.
-        const shape = MAGNET[state.fileShapes[file.uri] || state.shapeId];
-        const rSlot = shape ? shape.magnetW / shape.magnetH : 1;
-        if (shape) {
-          const rImg = targetCrop.aspectRatio;
-          let wBase, hBase;
-          if (rImg > rSlot) {
-            hBase = shape.magnetH;
-            wBase = shape.magnetH * rImg;
-          } else {
-            wBase = shape.magnetW;
-            hBase = shape.magnetW / rImg;
-          }
-          const wZoomed = wBase * targetCrop.scale;
-          const hZoomed = hBase * targetCrop.scale;
-          const maxOffsetX = (wZoomed - shape.magnetW) / 2;
-          const maxOffsetY = (hZoomed - shape.magnetH) / 2;
-          targetCrop.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, currentCrop.offsetX));
-          targetCrop.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, currentCrop.offsetY));
-        } else {
-          targetCrop.offsetX = currentCrop.offsetX;
-          targetCrop.offsetY = currentCrop.offsetY;
-        }
-
-        // Copy color/filter adjustments too
-        targetCrop.brightness = currentCrop.brightness ?? 1;
-        targetCrop.contrast = currentCrop.contrast ?? 1;
-        targetCrop.saturation = currentCrop.saturation ?? 1;
-        targetCrop.filterExtra = currentCrop.filterExtra ?? "";
-        targetCrop.preset = currentCrop.preset ?? "original";
+        state.crops[file.uri].scale = currentCrop.scale;
+        state.crops[file.uri].offsetX = currentCrop.offsetX;
+        state.crops[file.uri].offsetY = currentCrop.offsetY;
       }
     });
 
-    setStatus("Applied crop and color settings to all images.");
+    setStatus("Applied crop settings to all images.");
     renderPreview();
     renderCropQueue();
     debouncedSave();
@@ -2359,10 +2174,10 @@ function setupListeners() {
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
 
-    const shape = MAGNET[state.fileShapes[state.selectedImageUri] || state.shapeId];
+    const shape = MAGNET[state.shapeId];
     if (!shape) return;
 
-    const maxWorkspaceDim = getCropMaxDim();
+    const maxWorkspaceDim = 360;
     let editorW;
     if (shape.slotW > shape.slotH) {
       editorW = maxWorkspaceDim;
@@ -2372,7 +2187,7 @@ function setupListeners() {
     const editorScale = editorW / shape.slotW;
 
     const crop = state.crops[state.selectedImageUri];
-    
+
     const rSlot = shape.magnetW / shape.magnetH;
     const rImg = crop.aspectRatio;
     let wBase, hBase;
@@ -2436,10 +2251,26 @@ let _docsCache = null; // null = not yet loaded
 function _migrateAndCache(docs) {
   let modified = false;
   docs.forEach(doc => {
+    if (["heart", "hexagon", "star"].includes(doc.shapeId)) {
+      doc.shapeId = "circle";
+      modified = true;
+    }
     if (doc.shapeId === "octagon") { doc.shapeId = "rectangle"; modified = true; }
     if (doc.items) {
       doc.items.forEach(item => {
+        if (["heart", "hexagon", "star"].includes(item.shapeId)) {
+          item.shapeId = "circle";
+          modified = true;
+        }
         if (item.shapeId === "octagon") { item.shapeId = "rectangle"; modified = true; }
+      });
+    }
+    if (doc.fileShapes) {
+      Object.keys(doc.fileShapes).forEach(uri => {
+        if (["heart", "hexagon", "star"].includes(doc.fileShapes[uri])) {
+          doc.fileShapes[uri] = "circle";
+          modified = true;
+        }
       });
     }
   });
@@ -2494,19 +2325,8 @@ function saveActiveDocument() {
   docs[idx].fileNames = state.fileNames;
   docs[idx].fileQtys = state.fileQtys;
   docs[idx].fileShapes = state.fileShapes;
-  docs[idx].fileShapesPinned = state.fileShapesPinned;
   docs[idx].lastModified = Date.now();
-  if (state.items.length > 0) docs[idx].draft = false;
 
-  _flushDocsCache();
-}
-
-/** Remove documents that were created but never had any images added. */
-function pruneEmptyDrafts() {
-  const docs = getAllDocuments();
-  const kept = docs.filter(d => !(d.draft && (!d.items || d.items.length === 0)));
-  if (kept.length === docs.length) return;
-  _docsCache = kept;
   _flushDocsCache();
 }
 
@@ -2540,8 +2360,7 @@ function createNewDocument(shapeId) {
     footer: "MADE USING PRINTBOT ( Built By SHOPSHIP )",
     items: [],
     crops: {},
-    lastModified: Date.now(),
-    draft: true, // pruned from Recent Designs if left empty
+    lastModified: Date.now()
   };
 
   saveDocument(newDoc);
@@ -2562,9 +2381,8 @@ async function loadDocument(docId) {
   state.fileNames = doc.fileNames || {};
   state.fileQtys = doc.fileQtys || {};
   state.fileShapes = doc.fileShapes || {};
-  state.fileShapesPinned = doc.fileShapesPinned || {};
   // state.items will be rebuilt from files + fileQtys after file reconstruction
-  
+
   // Derive unique URIs: prefer fileQtys keys (new saves), fall back to doc.items (legacy)
   const savedItems = doc.items || [];
   const uniqueUris = Object.keys(state.fileQtys).length > 0
@@ -2572,7 +2390,7 @@ async function loadDocument(docId) {
     : [...new Set(savedItems.map(item => item.uri))];
   state.files = [];
 
-  
+
   for (const uri of uniqueUris) {
     try {
       const dims = await getImageDimensions(uri);
@@ -2594,7 +2412,7 @@ async function loadDocument(docId) {
       if (!state.fileShapes[uri]) {
         state.fileShapes[uri] = state.shapeId || "circle";
       }
-      
+
       // Ensure crop info exists and is valid
       if (!state.crops[uri]) {
         state.crops[uri] = {
@@ -2618,7 +2436,7 @@ async function loadDocument(docId) {
   // Update DOM control elements
   // Update shape selection cards
   updateShapeSelection();
-  
+
   // Set active crop preview
   if (state.files.length > 0) {
     state.selectedImageUri = state.files[0].uri;
@@ -2635,7 +2453,7 @@ async function loadDocument(docId) {
     renderPreview();
   }
 
-  
+
   updateStats();
   updateWizardSteps();
   renderImageQueue();
@@ -2662,7 +2480,6 @@ function showView(viewName) {
       if (backSep) backSep.style.display = "none";
       if (btnGenerate) btnGenerate.style.display = "none";
       state.activeDocId = null;
-      pruneEmptyDrafts();
       renderDashboard();
     } else {
       if (dashboard) dashboard.style.display = "none";
@@ -2709,9 +2526,6 @@ function renderDashboard() {
       square: "Square",
       rectangle: "Rectangle",
       roundedSquare: "Rounded Sq.",
-      star: "Star",
-      heart: "Heart",
-      hexagon: "Hexagon",
       oval: "Oval",
     };
     const shapeLabel = shapeLabels[doc.shapeId] || doc.shapeId;
@@ -2722,9 +2536,6 @@ function renderDashboard() {
       square: "#14b8a6",
       rectangle: "#ec4899",
       roundedSquare: "#8b5cf6",
-      star: "#f59e0b",
-      heart: "#ef4444",
-      hexagon: "#10b981",
       oval: "#3b82f6",
     };
     const accentColor = shapeColors[doc.shapeId] || "#6366f1";
@@ -2881,46 +2692,6 @@ updateWizardSteps();
 setupDashboardListeners();
 initializeApp();
 
-// Premium Lerped Custom Cursor Logic (Stitch MCP Inspired)
-function initCustomCursor() {
-  const dotWrapper = document.getElementById("cursor-dot-wrapper");
-  const ringWrapper = document.getElementById("cursor-ring-wrapper");
-  const dot = document.getElementById("cursor-dot");
-  const ring = document.getElementById("cursor-ring");
-
-  if (!dotWrapper || !ringWrapper || !dot || !ring) return;
-
-  let hasMoved = false;
-
-  // Direct CSS variable update — no RAF, no lerp, zero lag
-  window.addEventListener("pointermove", (e) => {
-    if (e.pointerType !== "mouse") return;
-    dotWrapper.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`;
-    if (!hasMoved) {
-      hasMoved = true;
-      document.body.classList.add("custom-cursor-enabled");
-      dotWrapper.style.opacity = "1";
-    }
-  }, { passive: true });
-
-  document.addEventListener("pointerleave", () => {
-    dotWrapper.style.opacity = "0";
-    document.body.classList.remove("custom-cursor-enabled");
-    hasMoved = false;
-  }, { passive: true });
-
-  // Scale up logo on hover over interactive elements
-  const hoverSelector = "button,a,.shape-card,.thumb,.dropzone,input,select,[role='button'],.doc-thumbnail,.doc-card";
-  document.addEventListener("pointerover", (e) => {
-    if (e.pointerType !== "mouse") return;
-    if (e.target.closest && e.target.closest(hoverSelector)) dot.classList.add("hovered");
-  }, { passive: true });
-  document.addEventListener("pointerout", (e) => {
-    if (e.pointerType !== "mouse") return;
-    if (!e.relatedTarget?.closest?.(hoverSelector)) dot.classList.remove("hovered");
-  }, { passive: true });
-}
-
 // ── License UI ────────────────────────────────────────────────
 function showActivationModal(msg) {
   const modal = document.getElementById("activation-modal");
@@ -3041,4 +2812,3 @@ async function initLicense() {
 }
 
 initLicense();
-initCustomCursor();

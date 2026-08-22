@@ -4,14 +4,19 @@
   "description": "PrintBot - Premium Layout Workspace for ShopShip",
   "main": "server.js",
   "scripts": {
-    "build": "mkdir -p public && cp keygen.html public/ 2>/dev/null && cp -r assets public/ 2>/dev/null || true",
+    "build": "mkdir -p public && tailwindcss -i tailwind-input.css -o public/tailwind.css --minify && terser app.js -c -m -o public/app.min.js && cp index.html styles.css keygen.html public/ && cp -r assets public/",
     "start": "node server.js",
     "dev": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.22.2"
   },
   "devDependencies": {
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@tailwindcss/forms": "^0.5.11",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^3.4.19",
     "terser": "^5.48.0"
   }
 }
