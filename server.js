@@ -87,7 +87,7 @@ app.use(express.static(path.join(__dirname, "public"), {
 const IS_PROD    = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
 const LICENSE_ENABLED = !IS_PROD || Boolean(process.env.PB_SECRET);
 const SECRET     = process.env.PB_SECRET || crypto.randomBytes(32).toString("hex");
-const ADMIN_PASS = process.env.PB_ADMIN || "";
+const ADMIN_PASS = (process.env.PB_ADMIN || "").trim();
 const DEMO_LIMIT = 5;
 const PORT       = process.env.PORT || 3131;
 const DB_FILE    = process.env.PB_DB_FILE || path.join(__dirname, ".data", "pb_keys.json");
@@ -252,7 +252,7 @@ function requireAdmin(req, res, next) {
 app.post("/api/admin/login", (req, res) => {
   const ip = getIp(req);
   if (rateLimit(ip + ":admin-login", 8, 10 * 60_000)) return res.status(429).json({ ok: false, error: "Too many attempts." });
-  if (!ADMIN_PASS || !safeEqualText(req.body?.password || "", ADMIN_PASS)) {
+  if (!ADMIN_PASS || !safeEqualText(String(req.body?.password || "").trim(), ADMIN_PASS)) {
     return res.status(403).json({ ok: false, error: "Invalid admin password." });
   }
   const sid = crypto.randomBytes(32).toString("base64url");
