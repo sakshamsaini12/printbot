@@ -85,9 +85,7 @@ app.use(express.static(path.join(__dirname, "public"), {
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const IS_PROD    = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
-if (IS_PROD && (!process.env.PB_SECRET || !process.env.PB_ADMIN)) {
-  throw new Error("PB_SECRET and PB_ADMIN are required in production.");
-}
+const LICENSE_ENABLED = !IS_PROD || Boolean(process.env.PB_SECRET);
 const SECRET     = process.env.PB_SECRET || crypto.randomBytes(32).toString("hex");
 const ADMIN_PASS = process.env.PB_ADMIN || "";
 const DEMO_LIMIT = 5;
@@ -99,6 +97,8 @@ const SESSION_TTL_MS = 30 * 60 * 1000;
 if (process.env.VERCEL && !process.env.PB_DB_FILE) {
   console.warn("PB_DB_FILE is not configured. Connect persistent storage before production use.");
 }
+if (IS_PROD && !process.env.PB_SECRET) console.warn("PB_SECRET is missing. License activation is disabled; free demo remains available.");
+if (IS_PROD && !ADMIN_PASS) console.warn("PB_ADMIN is missing. License administration is disabled.");
 
 // ── DB helpers ───────────────────────────────────────────────────────────────
 function loadDB() {
@@ -149,8 +149,9 @@ function rateLimit(key, maxHits, windowMs = 60_000) {
 }
 
 function getIp(req) {
-  if (process.env.VERCEL && req.headers["x-vercel-forwarded-for"]) {
-    return String(req.headers["x-vercel-forwarded-for"]).split(",")[0].trim();
+  if (process.env.VERCEL) {
+    const forwarded = req.headers["x-vercel-forwarded-for"] || req.headers["x-forwarded-for"];
+    if (forwarded) return String(forwarded).split(",")[0].trim();
   }
   return req.socket?.remoteAddress || "unknown";
 }
@@ -307,6 +308,7 @@ app.post("/api/demo/use", (req, res) => {
 
 /** POST /api/activate */
 app.post("/api/activate", (req, res) => {
+  if (!LICENSE_ENABLED) return res.status(503).json({ ok: false, msg: "License activation is temporarily unavailable." });
   const ip = getIp(req);
   if (rateLimit(ip + ":activate", 10, 60_000)) {
     return res.status(429).json({ ok: false, msg: "Too many attempts. Try again in a minute." });
@@ -333,6 +335,7 @@ app.post("/api/activate", (req, res) => {
 
 /** POST /api/verify */
 app.post("/api/verify", (req, res) => {
+  if (!LICENSE_ENABLED) return res.status(503).json({ ok: false });
   const key      = sanitizeKey(req.body?.key || "");
   const deviceId = sanitizeDeviceId(req.body?.deviceId || "");
   const token    = typeof req.body?.token === "string" ? req.body.token.trim().slice(0,1024) : "";
@@ -423,5 +426,5 @@ app.get("/server.js",     (_, res) => res.status(403).send("Forbidden"));
 app.listen(PORT, () => {
   console.log(`\n  ✅  PrintBot: http://localhost:${PORT}`);
   console.log(`  🔑  Admin: http://localhost:${PORT}/keygen.html`);
-  console.log("  🔒  Admin authentication enabled\n");
+  console.log(`  🔒  Admin authentication ${ADMIN_PASS ? "enabled" : "disabled"}\n`);
 });
